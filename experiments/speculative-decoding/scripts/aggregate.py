@@ -102,18 +102,21 @@ def x(v):
 
 
 # ---------- community submissions (results/community/*.json) ----------
-def _device_label(key, hw):
+def _device_label(key, hw, meta=None):
     gpus = hw.get("gpus", []) if isinstance(hw, dict) else []
+    # Non-NVIDIA contributors (Apple Metal, AMD) have no nvidia-smi data, so fall back
+    # to the device name the harness recorded in the run's meta (e.g. via --gpu-label).
+    meta_gpu = (meta.get("gpu") if isinstance(meta, dict) else None) or None
     if key == "cpu":
         name = (hw.get("cpu") or "").replace("(R)", "").replace("(TM)", "")
         name = name.split(" CPU @")[0].replace(" Processor", "")
         name = " ".join(name.split())
         return f"CPU · {name}" if name else "CPU"
     if key == "gpu1":
-        return gpus[1]["name"] if len(gpus) > 1 else "GPU 1"
+        return gpus[1]["name"] if len(gpus) > 1 else (meta_gpu or "GPU 1")
     if key == "gpu_14b":
-        return (gpus[0]["name"] if gpus else "GPU") + " · 14B"
-    return gpus[0]["name"] if gpus else "GPU 0"
+        return (gpus[0]["name"] if gpus else (meta_gpu or "GPU")) + " · 14B"
+    return gpus[0]["name"] if gpus else (meta_gpu or "GPU 0")
 
 
 def _run_metrics(run_data):
@@ -159,7 +162,7 @@ def community():
             m = _run_metrics(run_data)
             if not m or not m["baseline"]:
                 continue
-            rows.append({"contributor": d.get("name"), "device": _device_label(key, hw),
+            rows.append({"contributor": d.get("name"), "device": _device_label(key, hw, run_data.get("meta")),
                          "notes": d.get("notes", ""), **m})
     return rows
 
