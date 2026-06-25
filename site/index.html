@@ -159,6 +159,7 @@ llama-server -m Qwen2.5-Coder-7B-Instruct-Q4_K_S.gguf <span class="g">^</span>
 
   <div id="bigmodelSection"></div>
   <div id="cpuSection"></div>
+  <div id="communitySection"></div>
 
   <h2>What we learned</h2>
   <div id="findings"></div>
@@ -377,6 +378,60 @@ const DATA = {
       "sp": 2.03
     }
   },
+  "community": [
+    {
+      "contributor": "inventivehq-5060ti-1080ti",
+      "device": "NVIDIA GeForce RTX 5060 Ti",
+      "notes": "Reference run. llama.cpp b9789 (CUDA 12.4) + Vulkan build; Qwen2.5-Coder 7B/14B Q4 + 0.5B Q8 draft, 3B on CPU.",
+      "baseline": 84.7,
+      "draft_sp": 0.95,
+      "draft_backend": "vulkan",
+      "ngram_sp": 1.0,
+      "best_cat": {
+        "label": "Math",
+        "sp": 1.23
+      }
+    },
+    {
+      "contributor": "inventivehq-5060ti-1080ti",
+      "device": "NVIDIA GeForce GTX 1080 Ti",
+      "notes": "Reference run. llama.cpp b9789 (CUDA 12.4) + Vulkan build; Qwen2.5-Coder 7B/14B Q4 + 0.5B Q8 draft, 3B on CPU.",
+      "baseline": 57.3,
+      "draft_sp": 0.97,
+      "draft_backend": "cuda",
+      "ngram_sp": 0.99,
+      "best_cat": {
+        "label": "Math",
+        "sp": 1.16
+      }
+    },
+    {
+      "contributor": "inventivehq-5060ti-1080ti",
+      "device": "NVIDIA GeForce RTX 5060 Ti · 14B",
+      "notes": "Reference run. llama.cpp b9789 (CUDA 12.4) + Vulkan build; Qwen2.5-Coder 7B/14B Q4 + 0.5B Q8 draft, 3B on CPU.",
+      "baseline": 42.0,
+      "draft_sp": 1.4,
+      "draft_backend": "cuda",
+      "ngram_sp": 0.99,
+      "best_cat": {
+        "label": "Math",
+        "sp": 1.85
+      }
+    },
+    {
+      "contributor": "inventivehq-5060ti-1080ti",
+      "device": "CPU",
+      "notes": "Reference run. llama.cpp b9789 (CUDA 12.4) + Vulkan build; Qwen2.5-Coder 7B/14B Q4 + 0.5B Q8 draft, 3B on CPU.",
+      "baseline": 12.9,
+      "draft_sp": 1.72,
+      "draft_backend": "cpu",
+      "ngram_sp": 1.01,
+      "best_cat": {
+        "label": "Math",
+        "sp": 2.03
+      }
+    }
+  ],
   "tldr": {
     "best_speedup": 1.23,
     "best_method": "Draft model",
@@ -628,8 +683,34 @@ function buildCpu(){
   o+=`</g>`; svg.innerHTML=o;
 }
 
+/* ====================== community results ====================== */
+function buildCommunity(){
+  const rows=DATA.community||[];
+  const host=document.getElementById('communitySection');
+  const repo='https://github.com/InventiveHQ/speculative-decoding-consumer-gpus';
+  let body;
+  if(!rows.length){
+    body=`<p>No community submissions yet — <b>be the first</b>. Run the suite and open a PR; see <a href="${repo}/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.</p>`;
+  } else {
+    const tr=rows.map(r=>{
+      const draft=r.draft_sp?`${fx(r.draft_sp)} <span class="tag">${(r.draft_backend||'').toUpperCase()}</span>`:'—';
+      const dcls=r.draft_sp>=1.05?'good':(r.draft_sp<0.97?'bad':'');
+      const best=r.best_cat?`${fx(r.best_cat.sp)} <span class="tag">${r.best_cat.label.toLowerCase()}</span>`:'—';
+      return `<tr><td><b>${r.contributor}</b></td><td>${r.device}</td><td class="num">${fmt(r.baseline)}</td><td class="num ${dcls}">${draft}</td><td class="num">${r.ngram_sp?fx(r.ngram_sp):'—'}</td><td class="num">${best}</td></tr>`;
+    }).join('');
+    body=`<table>
+      <tr><th>Contributor</th><th>Device</th><th>Baseline tok/s</th><th>Best draft</th><th>N-gram</th><th>Best task</th></tr>
+      ${tr}
+    </table>
+    <p class="tag">Draft/n-gram = speedup vs that device's own baseline (best backend shown). Add yours: <a href="${repo}/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>`;
+  }
+  host.innerHTML=`<h2>Community results</h2>
+    <p>Numbers from this experiment, and from anyone who's run the same suite on their own hardware. Want to add yours? It takes a few minutes — <a href="${repo}">grab the repo</a>.</p>
+    ${body}`;
+}
+
 /* ====================== boot ====================== */
-fillTldr(); genChart(); buildGpuCharts(); flipStats(); catChart(); buildBigModel(); buildCpu(); fillProse();
+fillTldr(); genChart(); buildGpuCharts(); flipStats(); catChart(); buildBigModel(); buildCpu(); buildCommunity(); fillProse();
 </script>
 </body>
 </html>

@@ -191,6 +191,60 @@
       "sp": 2.03
     }
   },
+  "community": [
+    {
+      "contributor": "inventivehq-5060ti-1080ti",
+      "device": "NVIDIA GeForce RTX 5060 Ti",
+      "notes": "Reference run. llama.cpp b9789 (CUDA 12.4) + Vulkan build; Qwen2.5-Coder 7B/14B Q4 + 0.5B Q8 draft, 3B on CPU.",
+      "baseline": 84.7,
+      "draft_sp": 0.95,
+      "draft_backend": "vulkan",
+      "ngram_sp": 1.0,
+      "best_cat": {
+        "label": "Math",
+        "sp": 1.23
+      }
+    },
+    {
+      "contributor": "inventivehq-5060ti-1080ti",
+      "device": "NVIDIA GeForce GTX 1080 Ti",
+      "notes": "Reference run. llama.cpp b9789 (CUDA 12.4) + Vulkan build; Qwen2.5-Coder 7B/14B Q4 + 0.5B Q8 draft, 3B on CPU.",
+      "baseline": 57.3,
+      "draft_sp": 0.97,
+      "draft_backend": "cuda",
+      "ngram_sp": 0.99,
+      "best_cat": {
+        "label": "Math",
+        "sp": 1.16
+      }
+    },
+    {
+      "contributor": "inventivehq-5060ti-1080ti",
+      "device": "NVIDIA GeForce RTX 5060 Ti \u00b7 14B",
+      "notes": "Reference run. llama.cpp b9789 (CUDA 12.4) + Vulkan build; Qwen2.5-Coder 7B/14B Q4 + 0.5B Q8 draft, 3B on CPU.",
+      "baseline": 42.0,
+      "draft_sp": 1.4,
+      "draft_backend": "cuda",
+      "ngram_sp": 0.99,
+      "best_cat": {
+        "label": "Math",
+        "sp": 1.85
+      }
+    },
+    {
+      "contributor": "inventivehq-5060ti-1080ti",
+      "device": "CPU",
+      "notes": "Reference run. llama.cpp b9789 (CUDA 12.4) + Vulkan build; Qwen2.5-Coder 7B/14B Q4 + 0.5B Q8 draft, 3B on CPU.",
+      "baseline": 12.9,
+      "draft_sp": 1.72,
+      "draft_backend": "cpu",
+      "ngram_sp": 1.01,
+      "best_cat": {
+        "label": "Math",
+        "sp": 2.03
+      }
+    }
+  ],
   "tldr": {
     "best_speedup": 1.23,
     "best_method": "Draft model",

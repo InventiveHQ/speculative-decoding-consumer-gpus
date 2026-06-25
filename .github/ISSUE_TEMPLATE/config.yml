@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How to contribute results
+    url: https://github.com/InventiveHQ/speculative-decoding-consumer-gpus/blob/main/CONTRIBUTING.md
+    about: Step-by-step guide to running the benchmark and submitting via PR.

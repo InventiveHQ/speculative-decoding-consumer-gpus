@@ -1,0 +1,54 @@
+name: "📈 Results submission (no PR needed)"
+description: "Share your hardware's speculative-decoding numbers. Prefer a PR? See CONTRIBUTING.md."
+title: "[results] <your GPU / CPU>"
+labels: ["community-results"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing! The cleanest way is a **pull request** adding a
+        `results/community/<name>.json` (run `python scripts/make_submission.py --name ...`).
+        But if that's inconvenient, paste your numbers here and we'll add them.
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      description: GPU(s) and CPU
+      placeholder: "RTX 4090 (24 GB, Ada) + Ryzen 9 7950X"
+    validations:
+      required: true
+  - type: input
+    id: llamacpp
+    attributes:
+      label: llama.cpp version
+      placeholder: "b9789"
+    validations:
+      required: true
+  - type: dropdown
+    id: backends
+    attributes:
+      label: Backend(s) tested
+      multiple: true
+      options: [CUDA, Vulkan, Metal, ROCm, CPU]
+    validations:
+      required: true
+  - type: textarea
+    id: numbers
+    attributes:
+      label: Results
+      description: "Paste the bench.py console output, or attach/paste your results JSON."
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / anything surprising
+      description: "Models, quant, observations (e.g. did CUDA draft backfire on a fast model?)"
+  - type: checkboxes
+    id: license
+    attributes:
+      label: License
+      options:
+        - label: "I agree to license this data under CC BY 4.0"
+          required: true

@@ -1,5 +1,5 @@
 """Aggregate raw benchmark results (two GPUs) into the generational DATA blob."""
-import json, os, statistics
+import json, os, statistics, glob
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 R = os.path.join(ROOT, "results")
@@ -101,6 +101,66 @@ def x(v):
     return f"{v:.2f}×" if v else "n/a"
 
 
+# ---------- community submissions (results/community/*.json) ----------
+def _device_label(key, hw):
+    gpus = hw.get("gpus", []) if isinstance(hw, dict) else []
+    if key == "cpu":
+        return "CPU"
+    if key == "gpu1":
+        return gpus[1]["name"] if len(gpus) > 1 else "GPU 1"
+    if key == "gpu_14b":
+        return (gpus[0]["name"] if gpus else "GPU") + " · 14B"
+    return gpus[0]["name"] if gpus else "GPU 0"
+
+
+def _run_metrics(run_data):
+    t = table_of(run_data)
+    backs = sorted(set(k[0] for k in t))
+    if not backs:
+        return None
+    base = max((t.get((b, "baseline"), {}).get("overall") or 0) for b in backs)
+    best_draft = None
+    for b in backs:
+        s = sp(t, b, "draft_0_5b")
+        if s and (best_draft is None or s > best_draft[0]):
+            best_draft = (s, b)
+    ng = max((sp(t, b, "ngram") or 0) for b in backs)
+    bestcat = None
+    for b in backs:
+        for c in CAT_ORDER:
+            s = cat_sp(t, b, "draft_0_5b", c)
+            if s and (bestcat is None or s > bestcat["sp"]):
+                bestcat = {"label": CAT_LABELS[c], "sp": round(s, 2)}
+    return {
+        "baseline": round(base, 1) if base else None,
+        "draft_sp": round(best_draft[0], 2) if best_draft else None,
+        "draft_backend": best_draft[1] if best_draft else None,
+        "ngram_sp": round(ng, 2) if ng else None,
+        "best_cat": bestcat,
+    }
+
+
+def community():
+    rows = []
+    for f in sorted(glob.glob(os.path.join(R, "community", "*.json"))):
+        try:
+            d = json.load(open(f, encoding="utf-8-sig"))
+        except Exception:
+            continue
+        if not isinstance(d, dict) or "runs" not in d:
+            continue
+        hw = d.get("hardware", {})
+        for key, run_data in d["runs"].items():
+            if not isinstance(run_data, dict) or "runs" not in run_data:
+                continue
+            m = _run_metrics(run_data)
+            if not m or not m["baseline"]:
+                continue
+            rows.append({"contributor": d.get("name"), "device": _device_label(key, hw),
+                         "notes": d.get("notes", ""), **m})
+    return rows
+
+
 def main():
     bw_data = load("results.json")          # Blackwell 7B
     ps_data = load("results_1080ti.json")   # Pascal 7B
@@ -199,6 +259,7 @@ def main():
         "gpus": [{k: v for k, v in g.items() if k != "_t"} for g in gpus],
         "bigmodel": bigmodel,
         "cpu": cpu,
+        "community": community(),
         "tldr": {
             "best_speedup": head["best_speedup"],
             "best_method": head["best_method"],
