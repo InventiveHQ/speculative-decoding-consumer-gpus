@@ -1,0 +1,243 @@
+{
+  "meta": {
+    "ctx": 4096,
+    "gpu": "CPU (no GPU)",
+    "max_tokens": 256,
+    "model": "Qwen2.5-Coder-3B Q4_K_M",
+    "target": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+    "draft": "Qwen2.5-Coder-0.5B-Instruct-Q8_0.gguf"
+  },
+  "runs": [
+    {
+      "label": "No speculation",
+      "backend": "cpu",
+      "status": "ok",
+      "records": [
+        {
+          "category": "code",
+          "id": "code_linkedlist",
+          "tps": 11.96,
+          "predicted_n": 256
+        },
+        {
+          "category": "code",
+          "id": "code_lru",
+          "tps": 12.89,
+          "predicted_n": 256
+        },
+        {
+          "category": "code",
+          "id": "code_sql",
+          "tps": 12.92,
+          "predicted_n": 256
+        },
+        {
+          "category": "math",
+          "id": "math_gsm8k_1",
+          "tps": 13.05,
+          "predicted_n": 256
+        },
+        {
+          "category": "math",
+          "id": "math_gsm8k_2",
+          "tps": 12.9,
+          "predicted_n": 256
+        },
+        {
+          "category": "math",
+          "id": "math_algebra",
+          "tps": 12.9,
+          "predicted_n": 256
+        },
+        {
+          "category": "reasoning",
+          "id": "reason_puzzle",
+          "tps": 13.07,
+          "predicted_n": 256
+        },
+        {
+          "category": "reasoning",
+          "id": "reason_plan",
+          "tps": 12.96,
+          "predicted_n": 256
+        },
+        {
+          "category": "summarization",
+          "id": "summ_transformer",
+          "tps": 13.07,
+          "predicted_n": 95
+        },
+        {
+          "category": "summarization",
+          "id": "summ_rewrite",
+          "tps": 12.86,
+          "predicted_n": 126
+        },
+        {
+          "category": "chat",
+          "id": "chat_advice",
+          "tps": 13.14,
+          "predicted_n": 256
+        },
+        {
+          "category": "chat",
+          "id": "chat_explain",
+          "tps": 12.82,
+          "predicted_n": 256
+        }
+      ],
+      "method": "baseline"
+    },
+    {
+      "label": "Draft model (0.5B)",
+      "backend": "cpu",
+      "status": "ok",
+      "records": [
+        {
+          "category": "code",
+          "id": "code_linkedlist",
+          "tps": 26.46,
+          "predicted_n": 256
+        },
+        {
+          "error": "The underlying connection was closed: A connection that was expected to be kept alive was closed by the server.",
+          "category": "code",
+          "id": "code_lru"
+        },
+        {
+          "category": "code",
+          "id": "code_sql",
+          "tps": 22.82,
+          "predicted_n": 256
+        },
+        {
+          "category": "math",
+          "id": "math_gsm8k_1",
+          "tps": 26.48,
+          "predicted_n": 256
+        },
+        {
+          "category": "math",
+          "id": "math_gsm8k_2",
+          "tps": 21.32,
+          "predicted_n": 256
+        },
+        {
+          "category": "math",
+          "id": "math_algebra",
+          "tps": 30.88,
+          "predicted_n": 256
+        },
+        {
+          "category": "reasoning",
+          "id": "reason_puzzle",
+          "tps": 24.01,
+          "predicted_n": 256
+        },
+        {
+          "category": "reasoning",
+          "id": "reason_plan",
+          "tps": 21.33,
+          "predicted_n": 238
+        },
+        {
+          "category": "summarization",
+          "id": "summ_transformer",
+          "tps": 29.0,
+          "predicted_n": 102
+        },
+        {
+          "category": "summarization",
+          "id": "summ_rewrite",
+          "tps": 14.72,
+          "predicted_n": 145
+        },
+        {
+          "category": "chat",
+          "id": "chat_advice",
+          "tps": 14.84,
+          "predicted_n": 256
+        },
+        {
+          "category": "chat",
+          "id": "chat_explain",
+          "tps": 11.4,
+          "predicted_n": 256
+        }
+      ],
+      "method": "draft_0_5b"
+    },
+    {
+      "label": "N-gram (model-free)",
+      "backend": "cpu",
+      "status": "ok",
+      "records": [
+        {
+          "category": "code",
+          "id": "code_linkedlist",
+          "tps": 12.86,
+          "predicted_n": 256
+        },
+        {
+          "category": "code",
+          "id": "code_lru",
+          "tps": 13.16,
+          "predicted_n": 256
+        },
+        {
+          "category": "code",
+          "id": "code_sql",
+          "tps": 13.06,
+          "predicted_n": 256
+        },
+        {
+          "category": "math",
+          "id": "math_gsm8k_1",
+          "tps": 12.85,
+          "predicted_n": 256
+        },
+        {
+          "error": "The underlying connection was closed: A connection that was expected to be kept alive was closed by the server.",
+          "category": "math",
+          "id": "math_gsm8k_2"
+        },
+        {
+          "error": "Unable to connect to the remote server",
+          "category": "math",
+          "id": "math_algebra"
+        },
+        {
+          "error": "Unable to connect to the remote server",
+          "category": "reasoning",
+          "id": "reason_puzzle"
+        },
+        {
+          "error": "Unable to connect to the remote server",
+          "category": "reasoning",
+          "id": "reason_plan"
+        },
+        {
+          "error": "Unable to connect to the remote server",
+          "category": "summarization",
+          "id": "summ_transformer"
+        },
+        {
+          "error": "Unable to connect to the remote server",
+          "category": "summarization",
+          "id": "summ_rewrite"
+        },
+        {
+          "error": "Unable to connect to the remote server",
+          "category": "chat",
+          "id": "chat_advice"
+        },
+        {
+          "error": "Unable to connect to the remote server",
+          "category": "chat",
+          "id": "chat_explain"
+        }
+      ],
+      "method": "ngram"
+    }
+  ]
+}

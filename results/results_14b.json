@@ -1,0 +1,432 @@
+{
+  "meta": {
+    "target": "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf",
+    "draft": "Qwen2.5-Coder-0.5B-Instruct-Q8_0.gguf",
+    "max_tokens": 256,
+    "ctx": 4096,
+    "gpu": "RTX 5060 Ti (Blackwell, sm_120)",
+    "gpu_index": 0
+  },
+  "runs": [
+    {
+      "backend": "cuda",
+      "method": "baseline",
+      "label": "No speculation",
+      "status": "ok",
+      "records": [
+        {
+          "id": "code_linkedlist",
+          "category": "code",
+          "tps": 42.2151475205032,
+          "predicted_n": 256,
+          "predicted_ms": 6064.174,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "89a5eac6d253",
+          "out_len_chars": 957
+        },
+        {
+          "id": "code_lru",
+          "category": "code",
+          "tps": 42.062232387261716,
+          "predicted_n": 256,
+          "predicted_ms": 6086.22,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "21f5381acad2",
+          "out_len_chars": 1164
+        },
+        {
+          "id": "code_sql",
+          "category": "code",
+          "tps": 42.2688184577363,
+          "predicted_n": 256,
+          "predicted_ms": 6056.474,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "96464f97e8ed",
+          "out_len_chars": 1147
+        },
+        {
+          "id": "math_gsm8k_1",
+          "category": "math",
+          "tps": 41.85841554451504,
+          "predicted_n": 256,
+          "predicted_ms": 6115.855,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "3fc5dd7cd79c",
+          "out_len_chars": 797
+        },
+        {
+          "id": "math_gsm8k_2",
+          "category": "math",
+          "tps": 41.89411818036171,
+          "predicted_n": 256,
+          "predicted_ms": 6110.643,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "d411ac402c50",
+          "out_len_chars": 846
+        },
+        {
+          "id": "math_algebra",
+          "category": "math",
+          "tps": 41.949443055597435,
+          "predicted_n": 256,
+          "predicted_ms": 6102.584,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "488eb6561c3f",
+          "out_len_chars": 577
+        },
+        {
+          "id": "reason_puzzle",
+          "category": "reasoning",
+          "tps": 41.88539925702501,
+          "predicted_n": 256,
+          "predicted_ms": 6111.915,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "6c049662df94",
+          "out_len_chars": 964
+        },
+        {
+          "id": "reason_plan",
+          "category": "reasoning",
+          "tps": 42.264701181958785,
+          "predicted_n": 256,
+          "predicted_ms": 6057.064,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "69f83d6bcf1a",
+          "out_len_chars": 1021
+        },
+        {
+          "id": "summ_transformer",
+          "category": "summarization",
+          "tps": 41.70191002616205,
+          "predicted_n": 159,
+          "predicted_ms": 3812.775,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "be123fd99994",
+          "out_len_chars": 924
+        },
+        {
+          "id": "summ_rewrite",
+          "category": "summarization",
+          "tps": 41.81921579647626,
+          "predicted_n": 157,
+          "predicted_ms": 3754.255,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "1c42ff75f549",
+          "out_len_chars": 807
+        },
+        {
+          "id": "chat_advice",
+          "category": "chat",
+          "tps": 42.322849941359706,
+          "predicted_n": 256,
+          "predicted_ms": 6048.742,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "f94ca2f94049",
+          "out_len_chars": 1182
+        },
+        {
+          "id": "chat_explain",
+          "category": "chat",
+          "tps": 41.935122434176606,
+          "predicted_n": 256,
+          "predicted_ms": 6104.668,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "3934259595bb",
+          "out_len_chars": 1073
+        }
+      ]
+    },
+    {
+      "backend": "cuda",
+      "method": "draft_0_5b",
+      "label": "Draft model (0.5B)",
+      "status": "ok",
+      "records": [
+        {
+          "id": "code_linkedlist",
+          "category": "code",
+          "tps": 76.51891541611046,
+          "predicted_n": 256,
+          "predicted_ms": 3345.578,
+          "draft_n": 264,
+          "draft_n_accepted": 202,
+          "out_hash": "89a5eac6d253",
+          "out_len_chars": 957
+        },
+        {
+          "id": "code_lru",
+          "category": "code",
+          "tps": 63.546737011580646,
+          "predicted_n": 256,
+          "predicted_ms": 4028.531,
+          "draft_n": 319,
+          "draft_n_accepted": 191,
+          "out_hash": "21f5381acad2",
+          "out_len_chars": 1164
+        },
+        {
+          "id": "code_sql",
+          "category": "code",
+          "tps": 58.37991183721127,
+          "predicted_n": 256,
+          "predicted_ms": 4385.07,
+          "draft_n": 346,
+          "draft_n_accepted": 185,
+          "out_hash": "96464f97e8ed",
+          "out_len_chars": 1147
+        },
+        {
+          "id": "math_gsm8k_1",
+          "category": "math",
+          "tps": 78.38233556090216,
+          "predicted_n": 256,
+          "predicted_ms": 3266.042,
+          "draft_n": 254,
+          "draft_n_accepted": 204,
+          "out_hash": "3fc5dd7cd79c",
+          "out_len_chars": 797
+        },
+        {
+          "id": "math_gsm8k_2",
+          "category": "math",
+          "tps": 73.0882915126507,
+          "predicted_n": 256,
+          "predicted_ms": 3502.613,
+          "draft_n": 275,
+          "draft_n_accepted": 200,
+          "out_hash": "a13fae8881d1",
+          "out_len_chars": 822
+        },
+        {
+          "id": "math_algebra",
+          "category": "math",
+          "tps": 81.3718531581338,
+          "predicted_n": 256,
+          "predicted_ms": 3146.051,
+          "draft_n": 244,
+          "draft_n_accepted": 206,
+          "out_hash": "488eb6561c3f",
+          "out_len_chars": 577
+        },
+        {
+          "id": "reason_puzzle",
+          "category": "reasoning",
+          "tps": 56.960963494697516,
+          "predicted_n": 256,
+          "predicted_ms": 4494.306,
+          "draft_n": 343,
+          "draft_n_accepted": 185,
+          "out_hash": "6c049662df94",
+          "out_len_chars": 964
+        },
+        {
+          "id": "reason_plan",
+          "category": "reasoning",
+          "tps": 58.713966883029165,
+          "predicted_n": 256,
+          "predicted_ms": 4360.121,
+          "draft_n": 335,
+          "draft_n_accepted": 186,
+          "out_hash": "69f83d6bcf1a",
+          "out_len_chars": 1021
+        },
+        {
+          "id": "summ_transformer",
+          "category": "summarization",
+          "tps": 43.55383994210353,
+          "predicted_n": 159,
+          "predicted_ms": 3650.654,
+          "draft_n": 285,
+          "draft_n_accepted": 102,
+          "out_hash": "be123fd99994",
+          "out_len_chars": 924
+        },
+        {
+          "id": "summ_rewrite",
+          "category": "summarization",
+          "tps": 37.23468213795379,
+          "predicted_n": 157,
+          "predicted_ms": 4216.499,
+          "draft_n": 330,
+          "draft_n_accepted": 90,
+          "out_hash": "8191a6622e52",
+          "out_len_chars": 807
+        },
+        {
+          "id": "chat_advice",
+          "category": "chat",
+          "tps": 41.44976377682476,
+          "predicted_n": 256,
+          "predicted_ms": 6176.151,
+          "draft_n": 486,
+          "draft_n_accepted": 157,
+          "out_hash": "e5df4fe8eab7",
+          "out_len_chars": 1184
+        },
+        {
+          "id": "chat_explain",
+          "category": "chat",
+          "tps": 36.393743915420934,
+          "predicted_n": 256,
+          "predicted_ms": 7034.176,
+          "draft_n": 556,
+          "draft_n_accepted": 143,
+          "out_hash": "fa6c320e6651",
+          "out_len_chars": 1248
+        }
+      ]
+    },
+    {
+      "backend": "cuda",
+      "method": "ngram",
+      "label": "N-gram (model-free)",
+      "status": "ok",
+      "records": [
+        {
+          "id": "code_linkedlist",
+          "category": "code",
+          "tps": 42.223001441849526,
+          "predicted_n": 256,
+          "predicted_ms": 6063.046,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "89a5eac6d253",
+          "out_len_chars": 957
+        },
+        {
+          "id": "code_lru",
+          "category": "code",
+          "tps": 41.9020588478407,
+          "predicted_n": 256,
+          "predicted_ms": 6109.485,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "21f5381acad2",
+          "out_len_chars": 1164
+        },
+        {
+          "id": "code_sql",
+          "category": "code",
+          "tps": 41.26204476964094,
+          "predicted_n": 256,
+          "predicted_ms": 6204.249,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "96464f97e8ed",
+          "out_len_chars": 1147
+        },
+        {
+          "id": "math_gsm8k_1",
+          "category": "math",
+          "tps": 41.15931645951418,
+          "predicted_n": 256,
+          "predicted_ms": 6219.734,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "3fc5dd7cd79c",
+          "out_len_chars": 797
+        },
+        {
+          "id": "math_gsm8k_2",
+          "category": "math",
+          "tps": 41.365013116425544,
+          "predicted_n": 256,
+          "predicted_ms": 6188.805,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "d411ac402c50",
+          "out_len_chars": 846
+        },
+        {
+          "id": "math_algebra",
+          "category": "math",
+          "tps": 41.55104870951532,
+          "predicted_n": 256,
+          "predicted_ms": 6161.096,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "488eb6561c3f",
+          "out_len_chars": 577
+        },
+        {
+          "id": "reason_puzzle",
+          "category": "reasoning",
+          "tps": 41.101685731052086,
+          "predicted_n": 256,
+          "predicted_ms": 6228.455,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "6c049662df94",
+          "out_len_chars": 964
+        },
+        {
+          "id": "reason_plan",
+          "category": "reasoning",
+          "tps": 41.806279499147706,
+          "predicted_n": 256,
+          "predicted_ms": 6123.482,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "69f83d6bcf1a",
+          "out_len_chars": 1021
+        },
+        {
+          "id": "summ_transformer",
+          "category": "summarization",
+          "tps": 41.49062507583782,
+          "predicted_n": 159,
+          "predicted_ms": 3832.191,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "be123fd99994",
+          "out_len_chars": 924
+        },
+        {
+          "id": "summ_rewrite",
+          "category": "summarization",
+          "tps": 41.51644500763427,
+          "predicted_n": 157,
+          "predicted_ms": 3781.634,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "1c42ff75f549",
+          "out_len_chars": 807
+        },
+        {
+          "id": "chat_advice",
+          "category": "chat",
+          "tps": 41.79165391286603,
+          "predicted_n": 256,
+          "predicted_ms": 6125.625,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "f94ca2f94049",
+          "out_len_chars": 1182
+        },
+        {
+          "id": "chat_explain",
+          "category": "chat",
+          "tps": 41.90675060457854,
+          "predicted_n": 256,
+          "predicted_ms": 6108.801,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "out_hash": "3934259595bb",
+          "out_len_chars": 1073
+        }
+      ]
+    }
+  ]
+}

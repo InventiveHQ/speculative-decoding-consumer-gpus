@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speculative Decoding on Consumer GPUs: Blackwell vs Pascal — InventiveHQ</title>
+<meta name="description" content="NVIDIA showed 15x speculative-decoding speedups on 8x DGX B300. We ran the same idea on a $570 RTX 5060 Ti and an 8-year-old GTX 1080 Ti, on Windows. Real, reproducible numbers — and a surprise about which runtime to use.">
+<style>
+  :root{
+    --ink:#13161b; --ink2:#3a4250; --line:#e7eaf0; --bg:#ffffff; --bg2:#f6f8fb;
+    --green:#76b900; --green-d:#5c9000; --teal:#1aa6a0; --amber:#f0a23b; --red:#e3543b; --slate:#8893a5;
+    --baseline:#8893a5; --draft:#76b900; --ngram:#1aa6a0;
+    --blackwell:#76b900; --pascal:#5b8def;
+    --shadow:0 1px 0 rgba(19,22,27,.04),0 12px 30px -18px rgba(19,22,27,.30);
+    --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px}
+  h1,h2,h3{line-height:1.15;letter-spacing:-.02em;font-weight:800}
+  h1{font-size:clamp(30px,5vw,50px);margin:.2em 0 .35em}
+  h2{font-size:clamp(23px,3.4vw,32px);margin:2.4em 0 .5em}
+  h3{font-size:18px;margin:1.6em 0 .4em}
+  p{margin:.7em 0;color:var(--ink2);font-size:17px}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(118,185,0,.35)}
+  a:hover{border-color:var(--green-d)}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
+  .lede{font-size:20px;color:var(--ink2);max-width:700px}
+  header.hero{padding:64px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:30px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .n .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
+  figure{margin:30px 0}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
+  button.ctrl{font-family:var(--mono);font-size:12px;border:1px solid var(--line);background:#fff;color:var(--ink2);padding:5px 10px;border-radius:8px;cursor:pointer}
+  button.ctrl:hover{border-color:var(--green);color:var(--green-d)}
+  .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .chartcard h3{margin:0 0 2px}
+  .chartcard .sub{font-size:13.5px;color:var(--slate);margin:0 0 8px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0 2px}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .gpuhdr{display:flex;align-items:baseline;gap:10px;margin:2px 0 2px}
+  .gpuhdr .nm{font-weight:800;font-size:17px}
+  .gpuhdr .sb{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;line-height:1.55;border:1px solid #1c2128}
+  pre .c{color:#7d8aa0}
+  pre .g{color:#9fe04f}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--ink)}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px}
+  .flip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+  .flip .b{border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;box-shadow:var(--shadow)}
+  .flip .b .v{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .flip .b .k{font-size:12px;color:var(--slate);margin-top:3px;font-family:var(--mono)}
+  .good{color:var(--green-d)} .bad{color:var(--red)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
+  footer{margin:60px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
+  .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.flip{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <span class="kicker">● InventiveHQ Lab · Hands-on</span>
+    <h1>NVIDIA's 15× speculative-decoding trick, on a $570 GPU — and an 8-year-old one</h1>
+    <p class="lede">NVIDIA's dFlash post shows up to <b>15× higher throughput</b> on eight DGX&nbsp;B300s. Almost nobody has those. So we ran the same core idea — speculative decoding — on a single consumer <b>RTX&nbsp;5060&nbsp;Ti</b> (Blackwell) and a <b>GTX&nbsp;1080&nbsp;Ti</b> (Pascal, 2017) in a Windows box, and measured what actually happens. One result genuinely surprised us.</p>
+    <div class="byline">
+      <span>By <b>InventiveHQ</b></span><span>·</span>
+      <span id="dateline">2026</span><span>·</span>
+      <span>llama.cpp · Windows · Qwen2.5-Coder 7B</span>
+    </div>
+    <div class="tldr" id="tldr"></div>
+    <p class="tag" style="margin-top:4px">Every speculative run's output is <b>byte-identical</b> to its baseline — speculative decoding changes speed, not answers.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <h2>The claim, and the honest question</h2>
+  <p>In <a href="https://developer.nvidia.com/blog/boost-inference-performance-up-to-15x-on-nvidia-blackwell-using-dflash-speculative-decoding/">NVIDIA's dFlash announcement</a>, a block-diffusion drafter pushes <code class="inl">gpt-oss-120b</code> to roughly <b>15× higher throughput</b> across eight Blackwell-Ultra GPUs. It's a clever result — but it lives in a world of 8× DGX&nbsp;B300 nodes, NVFP4, and TensorRT-LLM.</p>
+  <p>The core trick, though, is <b>not</b> datacenter-only. Speculative decoding ships today in <code class="inl">llama.cpp</code>, runs on Windows, and works on any GPU. So how much of that speedup survives at home? We tested two cards eight years and one price-bracket apart.</p>
+
+  <h2>How speculative decoding works (the 60-second version)</h2>
+  <p>A language model normally emits <b>one token per forward pass</b>. Each pass drags the whole multi-gigabyte model through memory to produce a single token — that's why local generation is slow, and why it's <em>memory-bound</em>, not compute-bound. Speculative decoding attacks exactly that:</p>
+  <figure>
+    <div class="panel">
+      <div class="head">
+        <span class="t">Speculative decoding · one big-model pass = several tokens</span>
+        <button class="ctrl" id="playBtn">⏸ pause</button>
+      </div>
+      <svg id="specSvg" viewBox="0 0 880 360" width="100%" role="img" aria-label="Animation: a small draft model proposes a block of tokens, the large target model verifies them in one parallel pass, and the longest correct prefix is accepted."></svg>
+    </div>
+    <figcaption>A small, cheap <b>draft</b> model guesses a block of tokens; the big <b>target</b> model checks them all in one pass and keeps the longest correct run. Wrong guesses cost nothing — the target's own token replaces them, so output is identical to normal decoding.</figcaption>
+  </figure>
+  <div class="note">The win is leverage: you still pay for the big model, but one expensive pass now ratifies <b>several</b> tokens instead of one — <em>if</em> the draft guesses well. That "if" is the whole story: speedups rise and fall with the <b>acceptance rate</b>, which is why predictable text (code, math) wins and free-form prose doesn't.</div>
+
+  <h2>The setup — reproducible on any GPU</h2>
+  <table>
+    <tr><th>Component</th><th>What we used</th></tr>
+    <tr><td>GPU A</td><td>NVIDIA RTX 5060 Ti — Blackwell (sm_120), 16&nbsp;GB, 2025, ~$570</td></tr>
+    <tr><td>GPU B</td><td>NVIDIA GTX 1080 Ti — Pascal (sm_61), 11&nbsp;GB, 2017</td></tr>
+    <tr><td>Runtime</td><td>llama.cpp (stock release) — both the CUDA-12.4 and Vulkan Windows builds</td></tr>
+    <tr><td>Target model</td><td>Qwen2.5-Coder-7B-Instruct (Q4_K_S, ~4.3&nbsp;GB)</td></tr>
+    <tr><td>Draft model</td><td>Qwen2.5-Coder-0.5B-Instruct (Q8_0, ~0.5&nbsp;GB)</td></tr>
+    <tr><td>Methods</td><td>Baseline · Draft-model speculation · N-gram (model-free) speculation</td></tr>
+  </table>
+  <pre><span class="c"># Draft-model speculation: 7B target + 0.5B draft, all on one GPU</span>
+llama-server -m Qwen2.5-Coder-7B-Instruct-Q4_K_S.gguf <span class="g">^</span>
+  -md Qwen2.5-Coder-0.5B-Instruct-Q8_0.gguf <span class="g">^</span>
+  --spec-type draft-simple --spec-draft-n-max 5 <span class="g">^</span>
+  -ngl 999 --split-mode none -mg 0 --jinja
+
+<span class="c"># Model-free n-gram speculation — zero extra download</span>
+llama-server -m Qwen2.5-Coder-7B-Instruct-Q4_K_S.gguf <span class="g">^</span>
+  --spec-type ngram-cache --spec-draft-n-max 5 -ngl 999 --jinja</pre>
+
+  <h2>Result 1: the generational baseline</h2>
+  <p>First, plain decoding — no speculation. An eight-year gap in silicon, and the cards are closer than you'd guess, because single-user decoding is bound by <b>memory bandwidth</b>, not compute:</p>
+  <div class="chartcard">
+    <h3>Baseline throughput — Blackwell vs Pascal</h3>
+    <p class="sub">Tokens/sec, single user, Qwen2.5-Coder-7B (Q4_K_S). Higher is faster.</p>
+    <div class="legend"><span><i style="background:var(--blackwell)"></i>RTX 5060 Ti (Blackwell)</span><span><i style="background:var(--pascal)"></i>GTX 1080 Ti (Pascal)</span></div>
+    <svg id="chartGen" viewBox="0 0 820 250" width="100%"></svg>
+  </div>
+
+  <h2>Result 2: does speculation actually help?</h2>
+  <p>Now the three methods on each card. Two bars per group: the <b>CUDA</b> build and the <b>Vulkan</b> build. Watch what happens to draft speculation on CUDA.</p>
+  <div class="legend">
+    <span><i style="background:var(--baseline)"></i>Baseline</span>
+    <span><i style="background:var(--draft)"></i>Draft model (0.5B)</span>
+    <span><i style="background:var(--ngram)"></i>N-gram (model-free)</span>
+  </div>
+  <div id="gpuCharts"></div>
+
+  <h2>The surprise: speculation has overhead, and it can backfire</h2>
+  <p>This is the part worth bookmarking. Speculative decoding <b>isn't free</b> — every draft-then-verify cycle carries overhead, and if the target model is <em>already fast</em>, that overhead can cost more than speculation saves. We hit it hard: on Blackwell's quick 7B (~85 tok/s), the stock <b>CUDA</b> build's draft speculation <em>collapsed to 0.27×</em> of baseline — a 3–4× slowdown — at perfectly healthy acceptance rates. Yet the <em>same CUDA build, same card</em>, pointed at a slower 14B (~42 tok/s) delivered up to <b>1.9×</b>, because the heavier model gives the overhead something to amortize against. The eight-year-old <b>Pascal</b> card never collapsed on the 7B either — its 7B only runs ~50 tok/s. The <b>Vulkan</b> build carries far less speculative overhead, so it stayed near or above baseline everywhere CUDA cratered.</p>
+  <p>The practical rule: <b>the faster your model already runs, the more the runtime choice matters.</b> On a fast small model, prefer the Vulkan build or model-free n-gram; the draft-model route earns its keep on slower, bigger models — which is exactly where you wanted the speedup anyway.</p>
+  <div class="flip" id="flip"></div>
+  <p class="sub" style="font-size:14px;color:var(--slate)">Draft-model speculation on the <b>fast 7B</b> (the worst case), overall speedup vs each backend's own baseline. Below 1.0× means speculation made it slower. See Result&nbsp;4 for how the 14B flips CUDA from 0.27× to a big win.</p>
+
+  <h2>Result 3: it's all about the task</h2>
+  <p>Speculative decoding is only as good as the draft's guesses, so the payoff tracks how predictable the output is — the same task-dependent shape NVIDIA reports across SPEED-Bench. Best method shown, per category:</p>
+  <div class="chartcard">
+    <h3>Speedup by task category <span class="tag" id="catnote"></span></h3>
+    <svg id="chartCat" viewBox="0 0 820 300" width="100%"></svg>
+  </div>
+
+  <div id="bigmodelSection"></div>
+  <div id="cpuSection"></div>
+
+  <h2>What we learned</h2>
+  <div id="findings"></div>
+
+  <h2>How this compares to NVIDIA's 15×</h2>
+  <p>It doesn't — and that's the point. NVIDIA's 15× is a <b>throughput</b> number at high concurrency on eight B300s serving a 120B model, where dFlash's block-diffusion drafter and NVFP4 do the heavy lifting. Ours is <b>single-user latency</b> on one consumer card. Different metric, different scale, different drafter.</p>
+  <p>What <em>transfers</em> is the mechanism and its shape: one expensive pass ratifying several tokens, with a payoff that rises and falls with how predictable the text is — and a sharp dependence on getting the runtime right. dFlash is the datacenter-grade version of a lever you can already pull at home. As stronger open drafters land (EAGLE-3, and dFlash itself), the home version only gets better.</p>
+
+  <h2>Reproduce it</h2>
+  <ol>
+    <li>Grab the latest <a href="https://github.com/ggml-org/llama.cpp/releases">llama.cpp release</a> — and grab <em>both</em> the CUDA and Vulkan Windows builds so you can compare.</li>
+    <li>Download any instruct model plus a small same-family draft model (we used Qwen2.5-Coder 7B + 0.5B).</li>
+    <li>Run <code class="inl">llama-server</code> with <code class="inl">--spec-type draft-simple -md &lt;draft&gt;</code>, or <code class="inl">--spec-type ngram-cache</code> for the zero-download option.</li>
+    <li>Read <code class="inl">timings.predicted_per_second</code> from the server's JSON response, and watch the <code class="inl">draft acceptance</code> line in the server log.</li>
+  </ol>
+  <div class="note" id="methodology"></div>
+
+  <footer>
+    <p><b>Methodology.</b> Single GPU, all model layers on it (<code class="inl">--split-mode none -mg 0</code>), context 4096, greedy decoding (temp 0, top-k 1), 256 generated tokens per prompt, a 12-prompt suite spanning code / math / reasoning / summarization / chat. Throughput is the server-reported <code class="inl">predicted_per_second</code> (pure generation rate). Every speculative run's output hash matched its baseline, confirming lossless decoding. Numbers vary with model, quant, draft choice, and prompt mix.</p>
+    <p class="tag">InventiveHQ Lab · measured data, hand-authored SVG visuals, no stock images.</p>
+  </footer>
+</main>
+
+<script>
+/* ====================== DATA (injected from real benchmark) ====================== */
+const DATA = {
+  "date": "June 2026",
+  "lossless": true,
+  "gpus": [
+    {
+      "key": "blackwell",
+      "name": "RTX 5060 Ti",
+      "sub": "Blackwell · 2025 · ~$570 · 16 GB",
+      "year": 2025,
+      "method_tps": {
+        "cuda": {
+          "baseline": 84.7,
+          "draft_0_5b": 23.1,
+          "ngram": 79.0
+        },
+        "vulkan": {
+          "baseline": 80.4,
+          "draft_0_5b": 75.9,
+          "ngram": 80.3
+        }
+      },
+      "baseline_cuda": 84.7,
+      "baseline_vulkan": 80.4,
+      "cuda_draft_sp": 0.27,
+      "vulkan_draft_sp": 0.95,
+      "cuda_draft_code_sp": 0.27,
+      "vulkan_draft_math_sp": 1.23,
+      "best_speedup": 1.23,
+      "best_method": "Draft model",
+      "best_backend": "vulkan",
+      "best_category": {
+        "label": "Math",
+        "speedup": 1.23
+      },
+      "categories": [
+        {
+          "label": "Code",
+          "speedup": 0.99
+        },
+        {
+          "label": "Math",
+          "speedup": 1.23
+        },
+        {
+          "label": "Reasoning",
+          "speedup": 0.92
+        },
+        {
+          "label": "Summarization",
+          "speedup": 0.81
+        },
+        {
+          "label": "Chat",
+          "speedup": 0.62
+        }
+      ]
+    },
+    {
+      "key": "pascal",
+      "name": "GTX 1080 Ti",
+      "sub": "Pascal · 2017 · 11 GB",
+      "year": 2017,
+      "method_tps": {
+        "cuda": {
+          "baseline": 50.5,
+          "draft_0_5b": 49.0,
+          "ngram": 49.7
+        },
+        "vulkan": {
+          "baseline": 57.3,
+          "draft_0_5b": 38.6,
+          "ngram": 56.7
+        }
+      },
+      "baseline_cuda": 50.5,
+      "baseline_vulkan": 57.3,
+      "cuda_draft_sp": 0.97,
+      "vulkan_draft_sp": 0.67,
+      "cuda_draft_code_sp": 1.11,
+      "vulkan_draft_math_sp": 0.79,
+      "best_speedup": 1.16,
+      "best_method": "Draft model",
+      "best_backend": "cuda",
+      "best_category": {
+        "label": "Math",
+        "speedup": 1.16
+      },
+      "categories": [
+        {
+          "label": "Code",
+          "speedup": 1.11
+        },
+        {
+          "label": "Math",
+          "speedup": 1.16
+        },
+        {
+          "label": "Reasoning",
+          "speedup": 0.94
+        },
+        {
+          "label": "Summarization",
+          "speedup": 0.82
+        },
+        {
+          "label": "Chat",
+          "speedup": 0.66
+        }
+      ]
+    }
+  ],
+  "bigmodel": {
+    "backend": "cuda",
+    "small": {
+      "label": "Qwen-Coder 7B · Q4_K_S",
+      "baseline": 84.7,
+      "draft_overall": 23.1,
+      "draft_sp": 0.27,
+      "draft_code_sp": 0.27
+    },
+    "big": {
+      "label": "Qwen-Coder 14B · Q4_K_M",
+      "baseline": 42.0,
+      "draft_overall": 58.8,
+      "draft_sp": 1.4,
+      "draft_code_sp": 1.57
+    },
+    "rows": [
+      {
+        "label": "Code",
+        "small": 0.27,
+        "big": 1.57
+      },
+      {
+        "label": "Math",
+        "small": 0.34,
+        "big": 1.85
+      },
+      {
+        "label": "Reasoning",
+        "small": 0.28,
+        "big": 1.37
+      },
+      {
+        "label": "Summarization",
+        "small": 0.24,
+        "big": 0.97
+      },
+      {
+        "label": "Chat",
+        "small": 0.2,
+        "big": 0.92
+      }
+    ],
+    "best_big_cat": {
+      "label": "Math",
+      "small": 0.34,
+      "big": 1.85
+    }
+  },
+  "cpu": {
+    "baseline": 12.9,
+    "draft": 22.1,
+    "ngram": 13.0,
+    "draft_sp": 1.72,
+    "draft_code_sp": 1.96,
+    "rows": [
+      {
+        "label": "Code",
+        "sp": 1.96
+      },
+      {
+        "label": "Math",
+        "sp": 2.03
+      },
+      {
+        "label": "Reasoning",
+        "sp": 1.74
+      },
+      {
+        "label": "Summarization",
+        "sp": 1.69
+      },
+      {
+        "label": "Chat",
+        "sp": 1.01
+      }
+    ],
+    "best_cat": {
+      "label": "Math",
+      "sp": 2.03
+    }
+  },
+  "tldr": {
+    "best_speedup": 1.23,
+    "best_method": "Draft model",
+    "best_backend": "vulkan",
+    "best_gpu": "RTX 5060 Ti",
+    "best_cat": "Math",
+    "best_cat_speedup": 1.85,
+    "best_cat_model": "14B",
+    "peak_tps": 85
+  },
+  "findings": [
+    {
+      "h": "Speculative decoding is not a free lunch at batch&nbsp;1",
+      "p": "NVIDIA's 15× comes from a 120B model at high concurrency. With one user and a fast 7B, generation is already memory-bandwidth-bound — the 5060 Ti runs ~84.7 tok/s on its own. A draft model only helps if it guesses well enough to beat that, so the win is real but measured in tens of percent, not multiples — and only on the right tasks."
+    },
+    {
+      "h": "The biggest surprise: speculation's overhead can backfire on a fast model",
+      "p": "Speculative decoding isn't free — each draft-then-verify cycle carries overhead, and on an <em>already-fast</em> target it can cost more than it saves. On Blackwell's quick 7B (~84.7 tok/s) the stock <b>CUDA</b> build's draft path collapsed to 0.27× of baseline — a 3–4× slowdown at perfectly healthy acceptance rates. The <em>same CUDA build, same card</em>, pointed at a slower 14B hit 1.57× on code — the heavier model gives the overhead something to amortize against. The eight-year-old <b>Pascal</b> 1080&nbsp;Ti never collapsed on the 7B either, since it only runs ~50.5 tok/s. The <b>Vulkan</b> build carries far less speculative overhead (0.95× overall on the 7B, where CUDA managed only 0.27×). Rule of thumb: the faster your model already runs, the more the runtime choice matters — on a fast small model, prefer Vulkan or model-free n-gram."
+    },
+    {
+      "h": "Speedups are entirely task-dependent — NVIDIA's exact shape",
+      "p": "Predictable text wins. The best working configs climbed to 1.23× on code/math but fell <em>below</em> 1.0× on open-ended chat, because the tiny draft model nails structured output and flails on free-form prose. Acceptance rate is the whole game — match the method to the workload."
+    },
+    {
+      "h": "N-gram speculation is the free safety net",
+      "p": "It needs no second model and almost no memory, predicts repeats straight from your context, and landed right around 1.0× across the suite on both cards and both runtimes — it rarely hurts and sometimes helps on repetitive or structured output. Little reason not to leave it on."
+    },
+    {
+      "h": "For memory-bound decoding, the generation gap is smaller than the spec sheet",
+      "p": "The 2017 GTX 1080 Ti baselined at ~57.3 tok/s (Vulkan) versus the 2025 5060 Ti's ~84.7 — only about 1.48×, despite eight years and a generational leap, because single-user decoding is bound by memory bandwidth (where the two cards are far closer than their age suggests), not raw compute. Worth knowing before you upgrade just to run a local model faster."
+    },
+    {
+      "h": "The bigger the model, the bigger the win — and a 14B does fit",
+      "p": "Speculation pays off most on slow models, which is the whole reason NVIDIA runs it on a 120B. We see the same curve in miniature: moving from the 7B to a full-quality 14B (Q4_K_M) on the 5060 Ti, draft speculation on code jumped from 0.27× to <b>1.57×</b>. And contrary to our first assumption, the 14B + draft fits in 16&nbsp;GB with room to spare (~10&nbsp;GB used at 4K context) — the weights are only ~9&nbsp;GB; it's the KV cache and context length, not the model, that you budget for. Keep the context sane (or quantize the KV cache with <code class='inl'>-ctk q8_0</code>) and a 14B speculates happily on a consumer card."
+    }
+  ]
+};
+
+/* ====================== helpers ====================== */
+const C = {baseline:'#8893a5', draft_0_5b:'#76b900', ngram:'#1aa6a0'};
+const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));
+const fx  = n => (n==null?'—':(Math.round(n*100)/100).toFixed(2)+'×');
+const NSV='http://www.w3.org/2000/svg';
+
+/* ====================== TL;DR ====================== */
+function fillTldr(){
+  document.getElementById('dateline').textContent = DATA.date || '2026';
+  const t=DATA.tldr;
+  const cards=[
+    {n:fx(t.best_cat_speedup), l:`fastest speculative win — ${t.best_cat} with the ${t.best_cat_model||''} model on the RTX 5060 Ti`},
+    {n:t.peak_tps+'<span class="u"> tok/s</span>', l:`peak single-user generation measured`},
+    {n:'2–3×', l:`how much slower the CUDA build ran speculation vs Vulkan — at the same acceptance`},
+  ];
+  document.getElementById('tldr').innerHTML=cards.map(c=>`<div class="stat"><div class="n">${c.n}</div><div class="l">${c.l}</div></div>`).join('');
+}
+
+/* ====================== generational baseline ====================== */
+function genChart(){
+  const svg=document.getElementById('chartGen');
+  const W=820,H=250,padL=48,padR=16,padT=14,padB=46,plotW=W-padL-padR,plotH=H-padT-padB;
+  const groups=[{k:'CUDA build',f:'baseline_cuda'},{k:'Vulkan build',f:'baseline_vulkan'}];
+  let max=0; DATA.gpus.forEach(g=>groups.forEach(gr=>max=Math.max(max,g[gr.f]||0)));
+  max=Math.ceil(max/20)*20||20;
+  let o=`<g font-family="var(--sans)">`;
+  for(let i=0;i<=4;i++){const y=padT+plotH-plotH*i/4;o+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eef1f6"/><text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#8893a5">${Math.round(max*i/4)}</text>`;}
+  const gW=plotW/groups.length, cols=['var(--blackwell)','var(--pascal)'];
+  groups.forEach((gr,gi)=>{const gx=padL+gW*gi+gW/2,bw=58,tot=bw*DATA.gpus.length+18;let x=gx-tot/2;
+    DATA.gpus.forEach((g,ci)=>{const v=g[gr.f]||0,h=plotH*v/max,y=padT+plotH-h;
+      o+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="5" fill="${cols[ci]}"><animate attributeName="height" from="0" to="${h}" dur="0.7s" fill="freeze"/><animate attributeName="y" from="${padT+plotH}" to="${y}" dur="0.7s" fill="freeze"/></rect>`;
+      o+=`<text x="${x+bw/2}" y="${y-6}" text-anchor="middle" font-size="13" font-weight="800" fill="#13161b">${fmt(v)}</text>`;
+      x+=bw+18;});
+    o+=`<text x="${gx}" y="${H-16}" text-anchor="middle" font-size="13.5" font-weight="700" fill="#3a4250">${gr.k}</text>`;});
+  o+=`<text x="${padL-36}" y="${padT+plotH/2}" transform="rotate(-90 ${padL-36} ${padT+plotH/2})" text-anchor="middle" font-size="11" fill="#8893a5">tokens / sec</text></g>`;
+  svg.innerHTML=o;
+}
+
+/* ====================== per-GPU grouped method chart ====================== */
+function methodChart(svg,g){
+  const W=820,H=250,padL=46,padR=16,padT=16,padB=42,plotW=W-padL-padR,plotH=H-padT-padB;
+  const backs=[{k:'CUDA build',b:'cuda'},{k:'Vulkan build',b:'vulkan'}];
+  const series=[{k:'baseline'},{k:'draft_0_5b'},{k:'ngram'}];
+  let max=0; backs.forEach(bk=>series.forEach(s=>max=Math.max(max,g.method_tps[bk.b][s.k]||0)));
+  max=Math.ceil(max/20)*20||20;
+  let o=`<g font-family="var(--sans)">`;
+  for(let i=0;i<=4;i++){const y=padT+plotH-plotH*i/4;o+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eef1f6"/><text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#8893a5">${Math.round(max*i/4)}</text>`;}
+  const gW=plotW/backs.length,bw=44;
+  backs.forEach((bk,bi)=>{const gx=padL+gW*bi+gW/2,tot=bw*series.length+16;let x=gx-tot/2;
+    series.forEach(s=>{const v=g.method_tps[bk.b][s.k]||0,h=plotH*v/max,y=padT+plotH-h;
+      o+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="4" fill="${C[s.k]}"><animate attributeName="height" from="0" to="${h}" dur="0.7s" fill="freeze"/><animate attributeName="y" from="${padT+plotH}" to="${y}" dur="0.7s" fill="freeze"/></rect>`;
+      o+=`<text x="${x+bw/2}" y="${y-5}" text-anchor="middle" font-size="11" font-weight="700" fill="#13161b">${fmt(v)}</text>`;
+      x+=bw+8;});
+    o+=`<text x="${gx}" y="${H-15}" text-anchor="middle" font-size="13" font-weight="700" fill="#3a4250">${bk.k}</text>`;});
+  o+=`</g>`; svg.innerHTML=o;
+}
+function buildGpuCharts(){
+  const host=document.getElementById('gpuCharts');
+  DATA.gpus.forEach(g=>{
+    const card=document.createElement('div'); card.className='chartcard';
+    card.innerHTML=`<div class="gpuhdr"><span class="nm">${g.name}</span><span class="sb">${g.sub}</span></div>`;
+    const svg=document.createElementNS(NSV,'svg'); svg.setAttribute('viewBox','0 0 820 250'); svg.setAttribute('width','100%');
+    card.appendChild(svg); host.appendChild(card); methodChart(svg,g);
+  });
+}
+
+/* ====================== backend-flip stats ====================== */
+function flipStats(){
+  const el=document.getElementById('flip'); let h='';
+  DATA.gpus.forEach(g=>{
+    h+=`<div class="b"><div class="v ${g.cuda_draft_sp>=1?'good':'bad'}">${fx(g.cuda_draft_sp)}</div><div class="k">${g.name} · CUDA draft</div></div>`;
+    h+=`<div class="b"><div class="v ${g.vulkan_draft_sp>=1?'good':'bad'}">${fx(g.vulkan_draft_sp)}</div><div class="k">${g.name} · Vulkan draft</div></div>`;
+  });
+  el.innerHTML=h;
+}
+
+/* ====================== category speedup ====================== */
+function catChart(){
+  const g=DATA.gpus[0]; const cats=g.categories;
+  document.getElementById('catnote').textContent=`— ${g.best_method}, ${g.best_backend.toUpperCase()}, ${g.name}`;
+  const svg=document.getElementById('chartCat');
+  const W=820,rowH=42,padL=130,padR=70,padT=8,H=padT+cats.length*rowH+12; svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const max=Math.max(1.6,Math.ceil(Math.max(...cats.map(c=>c.speedup))*10)/10+0.2),plotW=W-padL-padR;
+  let o=`<g font-family="var(--sans)">`;
+  const x1=padL+plotW*(1/max);
+  o+=`<line x1="${x1}" y1="${padT}" x2="${x1}" y2="${H-12}" stroke="#cfd6e0" stroke-dasharray="4 4"/><text x="${x1}" y="${H-1}" text-anchor="middle" font-size="10.5" fill="#8893a5">1× (baseline)</text>`;
+  cats.forEach((c,i)=>{const y=padT+i*rowH+6,w=plotW*(c.speedup/max),col=c.speedup>=1.15?'#5c9000':(c.speedup>=0.98?'#9bbf57':'#e3543b');
+    o+=`<text x="${padL-12}" y="${y+18}" text-anchor="end" font-size="13.5" font-weight="700" fill="#3a4250">${c.label}</text>`;
+    o+=`<rect x="${padL}" y="${y}" width="${plotW}" height="26" rx="6" fill="#f1f4f9"/>`;
+    o+=`<rect x="${padL}" y="${y}" width="${w}" height="26" rx="6" fill="${col}"><animate attributeName="width" from="0" to="${w}" dur="0.8s" fill="freeze"/></rect>`;
+    o+=`<text x="${padL+w+8}" y="${y+18}" font-size="13" font-weight="800" fill="#13161b">${fx(c.speedup)}</text>`;});
+  o+=`</g>`; svg.innerHTML=o;
+}
+
+/* ====================== prose ====================== */
+function fillProse(){
+  document.getElementById('findings').innerHTML=DATA.findings.map(f=>`<h3>${f.h}</h3><p>${f.p}</p>`).join('');
+  document.getElementById('methodology').innerHTML=`<b>Want the code?</b> The benchmark driver (<code class="inl">bench.py</code>), the 12-prompt suite, the aggregator, and the raw per-GPU <code class="inl">results.json</code> files live alongside this page. Re-run <code class="inl">python bench.py --gpu 0</code> (or <code class="inl">--gpu 1</code>) on your own hardware and compare.`;
+}
+
+/* ====================== animated explainer ====================== */
+(function(){
+  const svg=document.getElementById('specSvg');
+  const tokens=['def',' add(','a, b',' ):',' return',' a+b'];
+  const acceptN=4, colW=104, x0=150, yDraft=126, yTarget=232, boxH=46;
+  function el(t,a,x){const e=document.createElementNS(NSV,t);for(const k in a)e.setAttribute(k,a[k]);if(x!=null)e.textContent=x;return e;}
+  function clear(){while(svg.firstChild)svg.removeChild(svg.firstChild);}
+  function label(x,y,t,o={}){const e=el('text',{x,y,'font-size':o.s||13,'font-family':'var(--sans)','font-weight':o.w||600,fill:o.c||'#3a4250','text-anchor':o.a||'start'});e.textContent=t;svg.appendChild(e);return e;}
+  function box(x,y,w,h,f,s){return el('rect',{x,y,width:w,height:h,rx:9,fill:f,stroke:s||'#13161b','stroke-width':2});}
+  let raf,playing=true,t0=null;
+  const PH=[{n:'draft',d:2200},{n:'verify',d:1500},{n:'accept',d:1700},{n:'advance',d:1400}];
+  const TOT=PH.reduce((a,p)=>a+p.d,0);
+  function phaseAt(ms){let a=0;for(const p of PH){if(ms<a+p.d)return{name:p.n,t:(ms-a)/p.d};a+=p.d;}return{name:'advance',t:1};}
+  function draw(ms){clear();const ph=phaseAt(ms%TOT);
+    svg.appendChild(el('rect',{x:0,y:0,width:880,height:360,fill:'#ffffff'}));
+    label(24,yDraft-30,'DRAFT MODEL',{s:12,w:800,c:'#5c9000'});label(24,yDraft-13,'0.5B · cheap & fast',{s:11,w:600,c:'#8893a5'});
+    label(24,yTarget-30,'TARGET MODEL',{s:12,w:800,c:'#13161b'});label(24,yTarget-13,'7B · one pass = several tokens',{s:11,w:600,c:'#8893a5'});
+    svg.appendChild(box(24,yDraft,96,boxH,'#eaf5d8','#76b900'));label(72,yDraft+28,'draft',{s:13,w:800,c:'#5c9000',a:'middle'});
+    svg.appendChild(box(24,yTarget,96,boxH,'#11151c','#11151c'));label(72,yTarget+28,'verify',{s:13,w:800,c:'#eaf5d8',a:'middle'});
+    const n=tokens.length;
+    if(ph.name==='draft'){const shown=Math.min(n,Math.floor(ph.t*n*1.15)+1);
+      for(let i=0;i<shown;i++){const x=x0+i*colW,ap=Math.min(1,(ph.t*n*1.15)-i),s=0.6+0.4*ap;
+        const grp=el('g',{transform:`translate(${x+(colW-86)/2},${yDraft}) scale(${s})`,opacity:ap});
+        grp.appendChild(box(0,0,86,boxH,'#eaf5d8','#76b900'));
+        grp.appendChild(el('text',{x:43,y:29,'font-size':14,'font-family':'var(--mono)','font-weight':700,fill:'#3a4250','text-anchor':'middle'},tokens[i]));
+        svg.appendChild(grp);}
+      label(440,40,'1 · Draft guesses a whole block of tokens — fast, because it is tiny',{s:14,w:700,c:'#13161b',a:'middle'});}
+    else if(ph.name==='verify'){for(let i=0;i<n;i++){const x=x0+i*colW;
+        svg.appendChild(box(x+(colW-86)/2,yDraft,86,boxH,'#eaf5d8','#76b900'));
+        svg.appendChild(el('text',{x:x+colW/2,y:yDraft+29,'font-size':14,'font-family':'var(--mono)','font-weight':700,fill:'#3a4250','text-anchor':'middle'},tokens[i]));}
+      const sx=x0+ph.t*(n*colW);
+      svg.appendChild(el('rect',{x:x0,y:yTarget-6,width:n*colW-18,height:boxH+12,rx:12,fill:'#11151c',opacity:0.06}));
+      svg.appendChild(el('line',{x1:sx,y1:yDraft-10,x2:sx,y2:yTarget+boxH+10,stroke:'#76b900','stroke-width':3,opacity:0.9}));
+      svg.appendChild(el('circle',{cx:sx,cy:yTarget+boxH/2,r:7,fill:'#76b900'}));
+      label(440,40,'2 · The big model verifies the whole block in ONE pass (parallel)',{s:14,w:700,c:'#13161b',a:'middle'});}
+    else if(ph.name==='accept'){for(let i=0;i<n;i++){const x=x0+i*colW;let f='#eaf5d8',s='#76b900',c='#3a4250',m='';
+        if(i<acceptN){f='#dff3c4';s='#5c9000';c='#2f4d00';m='✓';}else if(i===acceptN){f='#fbe1da';s='#e3543b';c='#9c2a18';m='✗';}else{f='#f1f4f9';s='#cfd6e0';c='#aab3c2';}
+        svg.appendChild(box(x+(colW-86)/2,yDraft,86,boxH,f,s));
+        svg.appendChild(el('text',{x:x+colW/2,y:yDraft+29,'font-size':14,'font-family':'var(--mono)','font-weight':700,fill:c,'text-anchor':'middle'},tokens[i]));
+        if(m)svg.appendChild(el('text',{x:x+colW/2,y:yDraft-8,'font-size':16,'font-weight':800,fill:s,'text-anchor':'middle'},m));}
+      label(440,40,`3 · Keep the longest correct run (${acceptN}). First miss → target's own token`,{s:13.5,w:700,c:'#13161b',a:'middle'});}
+    else{const got=acceptN+1;for(let i=0;i<got;i++){const x=x0+i*colW;
+        svg.appendChild(box(x+(colW-86)/2,yDraft,86,boxH,'#dff3c4','#5c9000'));
+        svg.appendChild(el('text',{x:x+colW/2,y:yDraft+29,'font-size':14,'font-family':'var(--mono)','font-weight':700,fill:'#2f4d00','text-anchor':'middle'},tokens[i]));}
+      label(440,40,`✓ ${got} tokens committed from ONE target pass`,{s:15,w:800,c:'#5c9000',a:'middle'});
+      label(x0,yTarget+4,'Baseline, same one pass:',{s:13,w:700,c:'#8893a5'});
+      svg.appendChild(box(x0+182,yTarget-16,86,boxH,'#eef1f6','#8893a5'));
+      svg.appendChild(el('text',{x:x0+182+43,y:yTarget+13,'font-size':14,'font-family':'var(--mono)','font-weight':700,fill:'#8893a5','text-anchor':'middle'},tokens[0]));
+      label(x0+182+100,yTarget+13,'= 1 token',{s:13,w:700,c:'#8893a5'});}
+    ['draft','verify','accept','advance'].forEach((nm,i)=>svg.appendChild(el('circle',{cx:360+i*16,cy:344,r:5,fill:nm===ph.name?'#76b900':'#d7dde6'})));}
+  function loop(ts){if(t0==null)t0=ts;draw(ts-t0);if(playing)raf=requestAnimationFrame(loop);}
+  raf=requestAnimationFrame(loop);
+  const btn=document.getElementById('playBtn');
+  btn.addEventListener('click',()=>{playing=!playing;btn.textContent=playing?'⏸ pause':'▶ play';if(playing){t0=null;raf=requestAnimationFrame(loop);}else cancelAnimationFrame(raf);});
+})();
+
+/* ====================== small vs big (quantized) model ====================== */
+function buildBigModel(){
+  const bm=DATA.bigmodel; if(!bm) return;
+  const host=document.getElementById('bigmodelSection');
+  const grew=bm.big.draft_sp>bm.small.draft_sp;
+  host.innerHTML=`
+    <h2>Result 4: the same backend, redeemed by a bigger model</h2>
+    <p>Here's the overhead story in one chart. Remember the <b>CUDA</b> build collapsing to ${fx(bm.small.draft_code_sp)} on the 7B's code task? Point that <em>same CUDA build</em> at a full-quality 14B (Q4_K_M) and draft speculation jumps to <b>${fx(bm.big.draft_code_sp)}</b> on code, peaking at <b>${fx(bm.best_big_cat.big)} on ${bm.best_big_cat.label.toLowerCase()}</b>. Nothing changed but the target's speed: the heavier model (baseline <b>${bm.small.baseline}</b> &rarr; <b>${bm.big.baseline}</b> tok/s) finally gives the per-cycle overhead something to amortize against. And it fits — ~10&nbsp;GB used at 4K context, since the weights are only ~9&nbsp;GB and it's the KV cache you budget for, not the model. The bigger the model, the more a single verified pass is worth — the same reason dFlash targets a 120B.</p>
+    <div class="chartcard">
+      <h3>Draft-model speedup by task — 7B vs 14B (same card, same CUDA build)</h3>
+      <p class="sub">Blackwell RTX 5060 Ti, CUDA build. Bars above the dashed line mean speculation is winning.</p>
+      <div class="legend"><span><i style="background:#8893a5"></i>7B · Q4_K_S</span><span><i style="background:#76b900"></i>14B · Q4_K_M</span></div>
+      <svg id="chartBig" viewBox="0 0 820 280" width="100%"></svg>
+    </div>`;
+  const svg=document.getElementById('chartBig');
+  const rows=bm.rows, W=820,padL=120,padR=20,padT=16,padB=40,rowH=44,H=padT+rows.length*rowH+padB;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const max=Math.max(1.4,Math.ceil(Math.max(...rows.flatMap(r=>[r.small,r.big]))*10)/10+0.15),plotW=W-padL-padR;
+  let o=`<g font-family="var(--sans)">`;
+  const x1=padL+plotW*(1/max);
+  o+=`<line x1="${x1}" y1="${padT-4}" x2="${x1}" y2="${H-padB+8}" stroke="#cfd6e0" stroke-dasharray="4 4"/><text x="${x1}" y="${H-padB+22}" text-anchor="middle" font-size="10.5" fill="#8893a5">1× (baseline)</text>`;
+  rows.forEach((r,i)=>{const y=padT+i*rowH;
+    o+=`<text x="${padL-12}" y="${y+24}" text-anchor="end" font-size="13.5" font-weight="700" fill="#3a4250">${r.label}</text>`;
+    [['small','#8893a5',0],['big','#76b900',1]].forEach(([k,col,bi])=>{const v=r[k],by=y+bi*16+2,w=plotW*(v/max);
+      o+=`<rect x="${padL}" y="${by}" width="${w}" height="13" rx="3" fill="${col}"><animate attributeName="width" from="0" to="${w}" dur="0.8s" fill="freeze"/></rect>`;
+      o+=`<text x="${padL+w+6}" y="${by+11}" font-size="10.5" font-weight="800" fill="#13161b">${v.toFixed(2)}×</text>`;});
+  });
+  o+=`</g>`; svg.innerHTML=o;
+}
+
+/* ====================== CPU (no GPU at all) ====================== */
+function buildCpu(){
+  const c=DATA.cpu; if(!c||!c.baseline) return;
+  const host=document.getElementById('cpuSection');
+  const helps=c.draft_code_sp>1.03;
+  host.innerHTML=`
+    <h2>Result 5: and on the CPU — no GPU at all?</h2>
+    <p>Speculative decoding isn't GPU-specific, so we ran the whole thing on the <b>CPU</b> with a small, CPU-appropriate model (Qwen2.5-Coder 3B + the same 0.5B draft, <code class="inl">-ngl 0 --device none</code>). The CPU is the slowest target of all — exactly the regime the overhead thesis says should benefit — and it does: baseline <b>${c.baseline}</b> tok/s, and draft speculation ${helps?'lifts code generation to <b>'+fx(c.draft_code_sp)+'</b>':'lands near '+fx(c.draft_code_sp)} (peaking at <b>${c.best_cat?fx(c.best_cat.sp)+' on '+c.best_cat.label.toLowerCase():''}</b>). Model-free n-gram is the easy win here too — no second model to load into RAM.</p>
+    <div class="chartcard">
+      <h3>CPU-only · Qwen2.5-Coder 3B — speedup by task</h3>
+      <p class="sub">Draft-model speculation vs CPU baseline (${c.baseline} tok/s). Above the dashed line = faster.</p>
+      <svg id="chartCpu" viewBox="0 0 820 280" width="100%"></svg>
+    </div>`;
+  const rows=c.rows, W=820,padL=120,padR=60,padT=14,padB=36,rowH=42,H=padT+rows.length*rowH+padB;
+  const svg=document.getElementById('chartCpu'); svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const max=Math.max(1.4,Math.ceil(Math.max(...rows.map(r=>r.sp))*10)/10+0.15),plotW=W-padL-padR;
+  let o=`<g font-family="var(--sans)">`;
+  const x1=padL+plotW*(1/max);
+  o+=`<line x1="${x1}" y1="${padT-4}" x2="${x1}" y2="${H-padB+6}" stroke="#cfd6e0" stroke-dasharray="4 4"/><text x="${x1}" y="${H-padB+20}" text-anchor="middle" font-size="10.5" fill="#8893a5">1× (baseline)</text>`;
+  rows.forEach((r,i)=>{const y=padT+i*rowH+4,w=plotW*(r.sp/max),col=r.sp>=1.08?'#5c9000':(r.sp>=0.98?'#9bbf57':'#e3543b');
+    o+=`<text x="${padL-12}" y="${y+19}" text-anchor="end" font-size="13.5" font-weight="700" fill="#3a4250">${r.label}</text>`;
+    o+=`<rect x="${padL}" y="${y}" width="${plotW}" height="26" rx="6" fill="#f1f4f9"/>`;
+    o+=`<rect x="${padL}" y="${y}" width="${w}" height="26" rx="6" fill="${col}"><animate attributeName="width" from="0" to="${w}" dur="0.8s" fill="freeze"/></rect>`;
+    o+=`<text x="${padL+w+8}" y="${y+19}" font-size="13" font-weight="800" fill="#13161b">${fx(r.sp)}</text>`;});
+  o+=`</g>`; svg.innerHTML=o;
+}
+
+/* ====================== boot ====================== */
+fillTldr(); genChart(); buildGpuCharts(); flipStats(); catChart(); buildBigModel(); buildCpu(); fillProse();
+</script>
+</body>
+</html>

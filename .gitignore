@@ -1,0 +1,18 @@
+# Large artifacts — download separately (see README "Setup")
+models/
+runtimes/
+*.gguf
+*.zip
+
+# Benchmark run noise — we keep results/*.json, drop the rest
+results/*.log
+results/*.err.log
+results/*.png
+results/*_partial.json
+results/_unused.json
+
+# Python
+__pycache__/
+*.pyc
+
+.DS_Store

@@ -1,0 +1,230 @@
+{
+  "date": "June 2026",
+  "lossless": true,
+  "gpus": [
+    {
+      "key": "blackwell",
+      "name": "RTX 5060 Ti",
+      "sub": "Blackwell \u00b7 2025 \u00b7 ~$570 \u00b7 16 GB",
+      "year": 2025,
+      "method_tps": {
+        "cuda": {
+          "baseline": 84.7,
+          "draft_0_5b": 23.1,
+          "ngram": 79.0
+        },
+        "vulkan": {
+          "baseline": 80.4,
+          "draft_0_5b": 75.9,
+          "ngram": 80.3
+        }
+      },
+      "baseline_cuda": 84.7,
+      "baseline_vulkan": 80.4,
+      "cuda_draft_sp": 0.27,
+      "vulkan_draft_sp": 0.95,
+      "cuda_draft_code_sp": 0.27,
+      "vulkan_draft_math_sp": 1.23,
+      "best_speedup": 1.23,
+      "best_method": "Draft model",
+      "best_backend": "vulkan",
+      "best_category": {
+        "label": "Math",
+        "speedup": 1.23
+      },
+      "categories": [
+        {
+          "label": "Code",
+          "speedup": 0.99
+        },
+        {
+          "label": "Math",
+          "speedup": 1.23
+        },
+        {
+          "label": "Reasoning",
+          "speedup": 0.92
+        },
+        {
+          "label": "Summarization",
+          "speedup": 0.81
+        },
+        {
+          "label": "Chat",
+          "speedup": 0.62
+        }
+      ]
+    },
+    {
+      "key": "pascal",
+      "name": "GTX 1080 Ti",
+      "sub": "Pascal \u00b7 2017 \u00b7 11 GB",
+      "year": 2017,
+      "method_tps": {
+        "cuda": {
+          "baseline": 50.5,
+          "draft_0_5b": 49.0,
+          "ngram": 49.7
+        },
+        "vulkan": {
+          "baseline": 57.3,
+          "draft_0_5b": 38.6,
+          "ngram": 56.7
+        }
+      },
+      "baseline_cuda": 50.5,
+      "baseline_vulkan": 57.3,
+      "cuda_draft_sp": 0.97,
+      "vulkan_draft_sp": 0.67,
+      "cuda_draft_code_sp": 1.11,
+      "vulkan_draft_math_sp": 0.79,
+      "best_speedup": 1.16,
+      "best_method": "Draft model",
+      "best_backend": "cuda",
+      "best_category": {
+        "label": "Math",
+        "speedup": 1.16
+      },
+      "categories": [
+        {
+          "label": "Code",
+          "speedup": 1.11
+        },
+        {
+          "label": "Math",
+          "speedup": 1.16
+        },
+        {
+          "label": "Reasoning",
+          "speedup": 0.94
+        },
+        {
+          "label": "Summarization",
+          "speedup": 0.82
+        },
+        {
+          "label": "Chat",
+          "speedup": 0.66
+        }
+      ]
+    }
+  ],
+  "bigmodel": {
+    "backend": "cuda",
+    "small": {
+      "label": "Qwen-Coder 7B \u00b7 Q4_K_S",
+      "baseline": 84.7,
+      "draft_overall": 23.1,
+      "draft_sp": 0.27,
+      "draft_code_sp": 0.27
+    },
+    "big": {
+      "label": "Qwen-Coder 14B \u00b7 Q4_K_M",
+      "baseline": 42.0,
+      "draft_overall": 58.8,
+      "draft_sp": 1.4,
+      "draft_code_sp": 1.57
+    },
+    "rows": [
+      {
+        "label": "Code",
+        "small": 0.27,
+        "big": 1.57
+      },
+      {
+        "label": "Math",
+        "small": 0.34,
+        "big": 1.85
+      },
+      {
+        "label": "Reasoning",
+        "small": 0.28,
+        "big": 1.37
+      },
+      {
+        "label": "Summarization",
+        "small": 0.24,
+        "big": 0.97
+      },
+      {
+        "label": "Chat",
+        "small": 0.2,
+        "big": 0.92
+      }
+    ],
+    "best_big_cat": {
+      "label": "Math",
+      "small": 0.34,
+      "big": 1.85
+    }
+  },
+  "cpu": {
+    "baseline": 12.9,
+    "draft": 22.1,
+    "ngram": 13.0,
+    "draft_sp": 1.72,
+    "draft_code_sp": 1.96,
+    "rows": [
+      {
+        "label": "Code",
+        "sp": 1.96
+      },
+      {
+        "label": "Math",
+        "sp": 2.03
+      },
+      {
+        "label": "Reasoning",
+        "sp": 1.74
+      },
+      {
+        "label": "Summarization",
+        "sp": 1.69
+      },
+      {
+        "label": "Chat",
+        "sp": 1.01
+      }
+    ],
+    "best_cat": {
+      "label": "Math",
+      "sp": 2.03
+    }
+  },
+  "tldr": {
+    "best_speedup": 1.23,
+    "best_method": "Draft model",
+    "best_backend": "vulkan",
+    "best_gpu": "RTX 5060 Ti",
+    "best_cat": "Math",
+    "best_cat_speedup": 1.85,
+    "best_cat_model": "14B",
+    "peak_tps": 85
+  },
+  "findings": [
+    {
+      "h": "Speculative decoding is not a free lunch at batch&nbsp;1",
+      "p": "NVIDIA's 15\u00d7 comes from a 120B model at high concurrency. With one user and a fast 7B, generation is already memory-bandwidth-bound \u2014 the 5060 Ti runs ~84.7 tok/s on its own. A draft model only helps if it guesses well enough to beat that, so the win is real but measured in tens of percent, not multiples \u2014 and only on the right tasks."
+    },
+    {
+      "h": "The biggest surprise: speculation's overhead can backfire on a fast model",
+      "p": "Speculative decoding isn't free \u2014 each draft-then-verify cycle carries overhead, and on an <em>already-fast</em> target it can cost more than it saves. On Blackwell's quick 7B (~84.7 tok/s) the stock <b>CUDA</b> build's draft path collapsed to 0.27\u00d7 of baseline \u2014 a 3\u20134\u00d7 slowdown at perfectly healthy acceptance rates. The <em>same CUDA build, same card</em>, pointed at a slower 14B hit 1.57\u00d7 on code \u2014 the heavier model gives the overhead something to amortize against. The eight-year-old <b>Pascal</b> 1080&nbsp;Ti never collapsed on the 7B either, since it only runs ~50.5 tok/s. The <b>Vulkan</b> build carries far less speculative overhead (0.95\u00d7 overall on the 7B, where CUDA managed only 0.27\u00d7). Rule of thumb: the faster your model already runs, the more the runtime choice matters \u2014 on a fast small model, prefer Vulkan or model-free n-gram."
+    },
+    {
+      "h": "Speedups are entirely task-dependent \u2014 NVIDIA's exact shape",
+      "p": "Predictable text wins. The best working configs climbed to 1.23\u00d7 on code/math but fell <em>below</em> 1.0\u00d7 on open-ended chat, because the tiny draft model nails structured output and flails on free-form prose. Acceptance rate is the whole game \u2014 match the method to the workload."
+    },
+    {
+      "h": "N-gram speculation is the free safety net",
+      "p": "It needs no second model and almost no memory, predicts repeats straight from your context, and landed right around 1.0\u00d7 across the suite on both cards and both runtimes \u2014 it rarely hurts and sometimes helps on repetitive or structured output. Little reason not to leave it on."
+    },
+    {
+      "h": "For memory-bound decoding, the generation gap is smaller than the spec sheet",
+      "p": "The 2017 GTX 1080 Ti baselined at ~57.3 tok/s (Vulkan) versus the 2025 5060 Ti's ~84.7 \u2014 only about 1.48\u00d7, despite eight years and a generational leap, because single-user decoding is bound by memory bandwidth (where the two cards are far closer than their age suggests), not raw compute. Worth knowing before you upgrade just to run a local model faster."
+    },
+    {
+      "h": "The bigger the model, the bigger the win \u2014 and a 14B does fit",
+      "p": "Speculation pays off most on slow models, which is the whole reason NVIDIA runs it on a 120B. We see the same curve in miniature: moving from the 7B to a full-quality 14B (Q4_K_M) on the 5060 Ti, draft speculation on code jumped from 0.27\u00d7 to <b>1.57\u00d7</b>. And contrary to our first assumption, the 14B + draft fits in 16&nbsp;GB with room to spare (~10&nbsp;GB used at 4K context) \u2014 the weights are only ~9&nbsp;GB; it's the KV cache and context length, not the model, that you budget for. Keep the context sane (or quantize the KV cache with <code class='inl'>-ctk q8_0</code>) and a 14B speculates happily on a consumer card."
+    }
+  ]
+}
