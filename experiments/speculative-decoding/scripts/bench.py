@@ -33,6 +33,9 @@ DRAFT  = os.path.join(MODELS_DIR, DRAFT_FILE)
 
 CUDA_EXE   = os.environ.get("SPECBENCH_CUDA_EXE",   os.path.join(ROOT, "runtimes", "cuda", "llama-server.exe"))
 VULKAN_EXE = os.environ.get("SPECBENCH_VULKAN_EXE", os.path.join(ROOT, "runtimes", "vulkan", "llama-server.exe"))
+# Apple Silicon / Metal: a stock llama-server (e.g. `brew install llama.cpp`) offloads
+# to the Apple GPU with -ngl 999. Defaults to llama-server on PATH; override if needed.
+METAL_EXE  = os.environ.get("SPECBENCH_METAL_EXE", "llama-server")
 
 PORT = 8099
 HOST = "127.0.0.1"
@@ -44,6 +47,7 @@ def make_backends(gpu):
     return [
         {"name": "cuda",   "exe": CUDA_EXE,   "env": {"CUDA_VISIBLE_DEVICES": g}},
         {"name": "vulkan", "exe": VULKAN_EXE, "env": {"GGML_VK_VISIBLE_DEVICES": g}},
+        {"name": "metal",  "exe": METAL_EXE,  "env": {}},
     ]
 
 BACKENDS = make_backends(0)
@@ -172,6 +176,7 @@ def main():
     ap.add_argument("--ctx", type=int, default=None)
     ap.add_argument("--gpu", type=int, default=0, help="physical GPU index (0=5060 Ti, 1=1080 Ti)")
     ap.add_argument("--cpu", action="store_true", help="run on CPU only (-ngl 0 --device none)")
+    ap.add_argument("--gpu-label", default=None, help="override the device name recorded in meta (e.g. 'Apple M3 Max (Metal)')")
     args = ap.parse_args()
     global CTX, BACKENDS, CPU_MODE
     if args.ctx:
@@ -189,7 +194,7 @@ def main():
     TARGET = os.path.join(MODELS_DIR, TARGETS[args.target])
     print(f"TARGET = {TARGET}")
 
-    gpu_name = "CPU" if args.cpu else {0: "RTX 5060 Ti (Blackwell, sm_120)", 1: "GTX 1080 Ti (Pascal, sm_61)"}.get(args.gpu, f"GPU {args.gpu}")
+    gpu_name = args.gpu_label or ("CPU" if args.cpu else {0: "RTX 5060 Ti (Blackwell, sm_120)", 1: "GTX 1080 Ti (Pascal, sm_61)"}.get(args.gpu, f"GPU {args.gpu}"))
     results = {"meta": {"target": TARGET, "draft": DRAFT, "max_tokens": MAX_TOKENS,
                         "ctx": CTX, "gpu": gpu_name, "gpu_index": args.gpu}, "runs": []}
     for backend in BACKENDS:
