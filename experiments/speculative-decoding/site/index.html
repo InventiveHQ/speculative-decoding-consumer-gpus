@@ -380,6 +380,32 @@ const DATA = {
   },
   "community": [
     {
+      "contributor": "apple-m3-max",
+      "device": "Apple M3 Max (Metal, 30-core GPU)",
+      "notes": "Apple M3 Max (30-core GPU / 14-core CPU), 36 GB unified, macOS arm64. llama.cpp b9430 (brew), Qwen2.5-Coder-7B Q4_K_S target + 0.5B Q8_0 draft, default methodology (greedy, 256 tok, 12-prompt suite). Metal GPU: speculation BACKFIRED — draft 0.63x, n-gram 0.78x vs 55 tok/s baseline at 52.9% acceptance; even model-free n-gram hurt, unlike on CUDA. Same chip's CPU (13.9 tok/s baseline): n-gram 1.19x overall (2.34x on code), draft 0.92x overall (1.80x on code) — overhead amortizes on the slow path. NOTE: speculative output was not byte-identical to baseline greedy on these Apple backends (Metal 3/12, CPU 8/12 draft prompts diverged) — minor fp nondeterminism in the verify path; quality unaffected.",
+      "baseline": 55.3,
+      "draft_sp": 0.63,
+      "draft_backend": "metal",
+      "ngram_sp": 0.78,
+      "best_cat": {
+        "label": "Math",
+        "sp": 0.75
+      }
+    },
+    {
+      "contributor": "apple-m3-max",
+      "device": "CPU · Apple M3 Max",
+      "notes": "Apple M3 Max (30-core GPU / 14-core CPU), 36 GB unified, macOS arm64. llama.cpp b9430 (brew), Qwen2.5-Coder-7B Q4_K_S target + 0.5B Q8_0 draft, default methodology (greedy, 256 tok, 12-prompt suite). Metal GPU: speculation BACKFIRED — draft 0.63x, n-gram 0.78x vs 55 tok/s baseline at 52.9% acceptance; even model-free n-gram hurt, unlike on CUDA. Same chip's CPU (13.9 tok/s baseline): n-gram 1.19x overall (2.34x on code), draft 0.92x overall (1.80x on code) — overhead amortizes on the slow path. NOTE: speculative output was not byte-identical to baseline greedy on these Apple backends (Metal 3/12, CPU 8/12 draft prompts diverged) — minor fp nondeterminism in the verify path; quality unaffected.",
+      "baseline": 13.9,
+      "draft_sp": 0.92,
+      "draft_backend": "cpu",
+      "ngram_sp": 1.19,
+      "best_cat": {
+        "label": "Code",
+        "sp": 1.8
+      }
+    },
+    {
       "contributor": "inventivehq-5060ti-1080ti",
       "device": "NVIDIA GeForce RTX 5060 Ti",
       "notes": "Reference run. llama.cpp b9789 (CUDA 12.4) + Vulkan build; Qwen2.5-Coder 7B/14B Q4 + 0.5B Q8 draft, 3B on CPU.",
