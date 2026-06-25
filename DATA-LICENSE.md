@@ -10,8 +10,8 @@ commercially, provided you give appropriate **attribution**.
 
 **Suggested attribution:**
 
-> Speculative-decoding benchmarks by InventiveHQ and contributors —
-> https://github.com/InventiveHQ/speculative-decoding-consumer-gpus (CC BY 4.0)
+> Local LLM benchmarks by InventiveHQ and contributors —
+> https://github.com/InventiveHQ/local-llm-benchmarks (CC BY 4.0)
 
 When you contribute results (see [CONTRIBUTING.md](CONTRIBUTING.md)) you agree to
 license your submitted data under CC BY 4.0 so it can be aggregated with the rest.

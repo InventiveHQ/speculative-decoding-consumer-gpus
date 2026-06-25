@@ -1,45 +1,39 @@
 # Contributing your results
 
-The whole point of this repo is to build a **community map** of where speculative
-decoding helps (and hurts) across real consumer hardware. If you have a GPU — or
-even just a CPU — your numbers are welcome.
+This repo is a **series** of local-LLM benchmarks, and the whole point is to build
+a community map of how each one behaves across real hardware. Your numbers — GPU or
+CPU — are welcome on any experiment.
+
+Each experiment lives in `experiments/<name>/` with its own `scripts/`, `results/`,
+and `results/community/` inbox. The example below uses experiment #1,
+[`speculative-decoding`](experiments/speculative-decoding/); the flow is the same
+for the others.
 
 ## 1. Set up (one-time)
 
-1. Download a llama.cpp release from
-   [ggml-org/llama.cpp/releases](https://github.com/ggml-org/llama.cpp/releases).
-   Grab the **CUDA** build and the **Vulkan** build for your OS, and unzip them to:
-   - `runtimes/cuda/llama-server.exe`
-   - `runtimes/vulkan/llama-server.exe`
+1. Download llama.cpp binaries from
+   [ggml-org/llama.cpp/releases](https://github.com/ggml-org/llama.cpp/releases)
+   — the **CUDA** and **Vulkan** builds for your OS. Point the harness at them with
+   env vars (so you can reuse one copy across experiments):
+   ```
+   SPECBENCH_CUDA_EXE   = .../cuda/llama-server(.exe)
+   SPECBENCH_VULKAN_EXE = .../vulkan/llama-server(.exe)
+   SPECBENCH_MODELS_DIR = .../your/models      # where the .gguf files live
+   ```
+   (On non-NVIDIA hardware, use whichever backend you have.)
+2. Download the models named in the experiment's README into `SPECBENCH_MODELS_DIR`.
+   For #1: Qwen2.5-Coder 7B Q4_K_S (target) + 0.5B Q8_0 (draft); optional 14B/3B.
+   A same-family draft (shared tokenizer) is required.
 
-   (On non-NVIDIA hardware, just use whichever backend you have. You can point at
-   existing binaries with `SPECBENCH_CUDA_EXE` / `SPECBENCH_VULKAN_EXE` env vars.)
-2. Download the models into `models/` (or set `SPECBENCH_MODELS_DIR`):
-   - `Qwen2.5-Coder-7B-Instruct-Q4_K_S.gguf`  (target)
-   - `Qwen2.5-Coder-0.5B-Instruct-Q8_0.gguf`  (draft)
-   - optional: `Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf`, `Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf`
-
-   All are on Hugging Face (e.g. the `bartowski` GGUF repos). Same-family draft is
-   required — the draft and target must share a tokenizer.
-
-## 2. Run the benchmark
+## 2. Run it
 
 ```bash
-# Your main GPU (index 0), both backends, 3 methods
+cd experiments/speculative-decoding
 python scripts/bench.py --gpu 0 --backends cuda,vulkan --out results/results.json
-
-# A second GPU? (index 1)
-python scripts/bench.py --gpu 1 --backends cuda,vulkan --out results/results_1080ti.json
-
-# A bigger model (fits if you have the VRAM)
-python scripts/bench.py --gpu 0 --target qwen14b --backends cuda,vulkan --out results/results_14b.json
-
-# CPU only (Windows: use the PowerShell runner — it's robust on long CPU requests)
-powershell -ExecutionPolicy Bypass -File scripts/cpu_bench.ps1
+# optional: second GPU, bigger model, CPU — see this experiment's README
 ```
 
-Only run what you can — a single `results/results.json` is a perfectly good
-contribution.
+Run only what you can — a single `results/results.json` is a great contribution.
 
 ## 3. Bundle + submit
 
@@ -47,17 +41,24 @@ contribution.
 python scripts/make_submission.py --name "rtx4090-ryzen7950x" --notes "llama.cpp b9999, Q4_K_M"
 ```
 
-That writes `results/community/<name>.json` with your hardware info and results.
-Open a **pull request** adding just that file. We'll merge it and (over time) add
-a community comparison view.
+That writes `results/community/<name>.json` with your hardware info + results. Open a
+**pull request** adding just that file. CI validates it and rebuilds the
+experiment's page automatically on merge.
 
 By submitting you agree to license your data under **CC BY 4.0** (see
 [DATA-LICENSE.md](DATA-LICENSE.md)).
 
-## What makes a good submission
+## Good-submission checklist
 
 - Note your **llama.cpp version** and exact **quant** in `--notes`.
-- Keep the default methodology (greedy, 256 tokens, the bundled 12-prompt suite)
-  so results are comparable. If you change something, say so in the notes.
-- The harness records the server's `draft acceptance` lines in
-  `results/server-*.log` — handy if you want to discuss *why* you saw what you saw.
+- Keep the default methodology (greedy, 256 tokens, the bundled 12-prompt suite from
+  `harness/prompts.py`) so results stay comparable — flag any deviations in notes.
+- Acceptance rates and server logs land in `results/server-*.log` if you want to
+  dig into *why* you saw what you saw.
+
+## Adding a whole new experiment?
+
+Build it on `harness/` (see [harness/README.md](harness/README.md)) as
+`experiments/<name>/` with `scripts/` + `results/` + `site/` + a `README.md`, then
+open a PR. Reusing `harness/prompts.py` and `harness/llama_client.py` keeps every
+experiment comparable and the CI rebuild automatic.

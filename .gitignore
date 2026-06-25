@@ -1,15 +1,15 @@
-# Large artifacts — download separately (see README "Setup")
+# Large artifacts — download separately (see CONTRIBUTING.md)
 models/
 runtimes/
 *.gguf
 *.zip
 
-# Benchmark run noise — we keep results/*.json, drop the rest
-results/*.log
-results/*.err.log
-results/*.png
-results/*_partial.json
-results/_unused.json
+# Benchmark run noise — we keep results/*.json, drop the rest (any experiment)
+**/results/*.log
+**/results/*.err.log
+**/results/*.png
+**/results/*_partial.json
+**/results/_unused.json
 
 # Python
 __pycache__/

@@ -1,18 +1,19 @@
-name: Rebuild results page
+name: Rebuild results pages
 
-# Validates contributor JSON on PRs, and rebuilds results/data.json + site/index.html
-# when community results land on main. Trigger path is results/community/** only, so the
-# bot's own commit (which touches results/data.json + site/index.html) never re-triggers.
+# Validates contributor JSON on PRs, and on push to main rebuilds the data.json +
+# site/index.html for every experiment. Trigger paths exclude the generated files
+# (results/data.json, site/index.html) so the bot's own commit never re-triggers.
 
 on:
   pull_request:
     paths:
-      - "results/community/**"
-      - "scripts/**"
+      - "experiments/**/results/community/**"
+      - "experiments/**/scripts/**"
+      - "harness/**"
   push:
     branches: [main]
     paths:
-      - "results/community/**"
+      - "experiments/**/results/community/**"
   workflow_dispatch:
 
 permissions:
@@ -23,17 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Validate submissions parse
+      - name: Validate community submissions parse
         run: |
           python - <<'PY'
           import glob, json, sys
           bad = []
-          for f in glob.glob("results/community/*.json"):
+          for f in glob.glob("experiments/*/results/community/*.json"):
               try:
                   d = json.load(open(f, encoding="utf-8-sig"))
                   assert isinstance(d, dict) and "runs" in d, "missing 'runs'"
@@ -44,20 +44,24 @@ jobs:
           print("All community submissions parse OK.")
           PY
 
-      - name: Rebuild data.json + page
+      - name: Rebuild every experiment's data.json + page
         run: |
-          python scripts/aggregate.py
-          python scripts/inject.py
+          for d in experiments/*/; do
+            if [ -f "${d}scripts/aggregate.py" ]; then
+              echo "Rebuilding ${d}"
+              ( cd "$d" && python scripts/aggregate.py && python scripts/inject.py )
+            fi
+          done
 
       - name: Commit rebuilt artifacts (main only)
         if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add results/data.json site/index.html
+          git add experiments/*/results/data.json experiments/*/site/index.html
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "chore: rebuild data.json + page from community results [skip ci]"
+            git commit -m "chore: rebuild experiment pages from community results [skip ci]"
             git push
           fi

@@ -687,7 +687,7 @@ function buildCpu(){
 function buildCommunity(){
   const rows=DATA.community||[];
   const host=document.getElementById('communitySection');
-  const repo='https://github.com/InventiveHQ/speculative-decoding-consumer-gpus';
+  const repo='https://github.com/InventiveHQ/local-llm-benchmarks';
   let body;
   if(!rows.length){
     body=`<p>No community submissions yet — <b>be the first</b>. Run the suite and open a PR; see <a href="${repo}/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.</p>`;
