@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CPU Thread Scaling for LLM Inference — InventiveHQ</title>
+<meta name="description" content="More CPU threads made my LLM slower. We sweep thread counts from 1 to 16 and find the optimal setting — and show the hyperthreading penalty past physical cores.">
+<style>
+  :root{
+    --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
+    --green:#76b900;--green-d:#5c9000;--teal:#1aa6a0;--red:#e3543b;--amber:#f0a23b;--slate:#8893a5;
+    --shadow:0 1px 0 rgba(19,22,27,.04),0 12px 30px -18px rgba(19,22,27,.30);
+    --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px}
+  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
+  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  p{margin:.7em 0;color:var(--ink2);font-size:17px}
+  a{color:var(--green-d)}
+  .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
+  header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  .lede{font-size:20px;color:var(--ink2);max-width:680px}
+  .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
+  td.num{font-family:var(--mono);text-align:right}
+  .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
+  .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+</style>
+</head>
+<body>
+<header class="hero"><div class="wrap">
+  <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #9</div>
+  <span class="kicker">● CPU Threads: More Is Not Always More</span>
+  <h1>More CPU threads made my LLM slower</h1>
+  <p class="lede">Setting <code class="inl">-t 16</code> when your CPU has 8 physical cores can <b>halve</b> your tok/s. We sweep thread counts from 1 to 16 and find the knee — and show the hyperthreading penalty in real numbers.</p>
+</div></header>
+
+<main class="wrap">
+  <h2>The setup</h2>
+  <p>One small model (<code class="inl">Qwen2.5-Coder-3B-Instruct-Q4_K_M</code>), CPU-only inference (<code class="inl">-ngl 0 --device none</code>), swept across thread counts: 1, 2, 4, 6, 8, 12, 16 (capped at the logical core count). Both compute (<code class="inl">-t</code>) and batch (<code class="inl">-tb</code>) threads are set to the same value at each step. Same 12-prompt suite at every count; we report mean generation tok/s.</p>
+  <p>The story: tok/s rises with threads as cores are added, plateaus around the physical-core count, then often <b>drops</b> as hyperthreads compete for the same memory bandwidth. The optimal setting is almost always at or just below the physical core count — the dotted amber line on the chart.</p>
+
+  <h2>Results</h2>
+  <div id="results"></div>
+
+  <h2>Community results</h2>
+  <div id="community"></div>
+
+  <h2>Reproduce</h2>
+  <pre># drop Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf into your models dir first
+export SPECBENCH_MODELS_DIR=/path/to/models
+export SPECBENCH_VULKAN_EXE=/path/to/llama-server
+export SPECBENCH_MODEL_BASE=Qwen2.5-Coder-3B-Instruct   # default; change to match your file
+
+python scripts/bench.py
+python scripts/aggregate.py &amp;&amp; python scripts/inject.py</pre>
+  <p>Full guide + how to submit your CPU: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+
+  <footer>
+    <p><b>Methodology.</b> CPU-only inference (llama.cpp, <code class="inl">-ngl 0 --device none</code>). Thread counts swept 1 → 16 capped at logical core count; <code class="inl">-t</code> and <code class="inl">-tb</code> set identically. Mean generation tok/s over the shared 12-prompt suite (256-token output, greedy, temp 0, seed 1234). Physical-core count queried from Win32_Processor / <code class="inl">/proc/cpuinfo</code> / <code class="inl">sysctl hw.physicalcpu</code>. Numbers vary by CPU architecture, BIOS power settings, OS scheduler, memory speed, and llama.cpp version.</p>
+    <p class="tag">InventiveHQ · code MIT, data CC BY 4.0 · part of the local-llm-benchmarks series.</p>
+  </footer>
+</main>
+
+<script>
+const DATA = {
+  "experiment": "cpu-thread-scaling",
+  "has_data": false,
+  "cpu_name": null,
+  "logical_cores": null,
+  "physical_cores": null,
+  "model": null,
+  "points": [],
+  "community": []
+};
+const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));
+
+function lineChart(svg, points, physCores){
+  const W=820,H=300,padL=56,padR=16,padT=30,padB=48,plotW=W-padL-padR,plotH=H-padT-padB;
+  const n=points.length;
+  if(!n){svg.innerHTML='';return;}
+  const maxTps=Math.max(...points.map(p=>p.tps||0));
+  const yMax=Math.ceil(maxTps*1.15/5)*5||10;
+  let peakIdx=0;
+  points.forEach((p,i)=>{if((p.tps||0)>(points[peakIdx].tps||0))peakIdx=i;});
+  const X=i=>n<2?padL+plotW/2:padL+plotW*i/(n-1);
+  const Y=v=>padT+plotH-plotH*v/yMax;
+  let o=`<g font-family="var(--sans)">`;
+  for(let i=0;i<=4;i++){const y=padT+plotH-plotH*i/4;o+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eef1f6"/><text x="${padL-7}" y="${y+4}" text-anchor="end" font-size="10.5" fill="#8893a5">${Math.round(yMax*i/4)}</text>`;}
+  if(physCores){
+    let pcIdx=0;
+    points.forEach((p,i)=>{if(Math.abs(p.threads-physCores)<Math.abs(points[pcIdx].threads-physCores))pcIdx=i;});
+    const xpc=X(pcIdx);
+    o+=`<line x1="${xpc}" y1="${padT}" x2="${xpc}" y2="${padT+plotH}" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5,4"/>`;
+    o+=`<text x="${xpc}" y="${padT-8}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--amber)">${physCores} physical cores</text>`;
+  }
+  const lpts=points.map((p,i)=>`${X(i)},${Y(p.tps||0)}`).join(' ');
+  o+=`<polyline fill="none" stroke="var(--green)" stroke-width="3" points="${lpts}"/>`;
+  points.forEach((p,i)=>{
+    const cx=X(i),cy=Y(p.tps||0),isPeak=i===peakIdx;
+    o+=`<circle cx="${cx}" cy="${cy}" r="${isPeak?6:4}" fill="${isPeak?'var(--green)':'var(--teal)'}"/>`;
+    if(isPeak){
+      const labelY=cy>padT+22?cy-12:cy+18;
+      o+=`<text x="${cx}" y="${labelY}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--green)">peak ${fmt(p.tps)} tok/s</text>`;
+    }
+  });
+  points.forEach((p,i)=>o+=`<text x="${X(i)}" y="${H-28}" text-anchor="middle" font-size="12" font-weight="700" fill="#3a4250">${p.threads}</text>`);
+  o+=`<text x="${padL+plotW/2}" y="${H-10}" text-anchor="middle" font-size="11" fill="#8893a5">thread count (-t / -tb)</text>`;
+  o+=`</g>`;
+  svg.innerHTML=o;
+}
+
+function renderResults(){
+  const host=document.getElementById('results');
+  if(!DATA.has_data){
+    host.innerHTML=`<div class="pending"><b>Results pending.</b><br>Scaffolded and ready — numbers land once the sweep is run on real hardware. Want to be first? See <a href="../../../CONTRIBUTING.md">CONTRIBUTING</a>.</div>`;
+    return;
+  }
+  const pts=DATA.points;
+  const best=pts.reduce((a,b)=>((b.tps||0)>(a.tps||0)?b:a),pts[0]);
+  const cpuLine=DATA.cpu_name
+    ?`<p><b>CPU:</b> ${DATA.cpu_name}`
+      +(DATA.logical_cores?` &nbsp;&middot;&nbsp; ${DATA.logical_cores} logical cores`:'')
+      +(DATA.physical_cores?` &nbsp;&middot;&nbsp; ${DATA.physical_cores} physical cores`:'')
+      +`</p>`
+    :'';
+  const legendParts=[`<span><i style="background:var(--green)"></i>tok/s</span>`,`<span><i style="background:var(--teal)"></i>measured point</span>`];
+  if(DATA.physical_cores) legendParts.push(`<span><i style="background:var(--amber)"></i>physical core boundary</span>`);
+  const rows=pts.map(p=>`<tr><td><b>${p.threads}</b>${p.threads===best.threads?' <span class="tag">peak</span>':''}</td><td class="num">${fmt(p.tps)}</td></tr>`).join('');
+  host.innerHTML=`
+    ${cpuLine}
+    <div class="chartcard">
+      <h3>tok/s vs thread count — where's the peak?</h3>
+      <div class="legend">${legendParts.join('')}</div>
+      <svg id="threadChart" viewBox="0 0 820 300" width="100%"></svg>
+    </div>
+    <table><tr><th>Threads</th><th style="text-align:right">tok/s</th></tr>${rows}</table>`;
+  lineChart(document.getElementById('threadChart'), pts, DATA.physical_cores||null);
+}
+
+function renderCommunity(){
+  const host=document.getElementById('community');
+  const rows=DATA.community||[];
+  if(!rows.length){
+    host.innerHTML=`<p>No community submissions yet — run the sweep on your CPU and open a PR. See <a href="../../../CONTRIBUTING.md">CONTRIBUTING</a>.</p>`;
+    return;
+  }
+  let html=`<p>${rows.length} submission(s):</p>`;
+  rows.forEach(r=>{
+    const best=r.peak_tps!=null?`peak ${fmt(r.peak_tps)} tok/s at ${r.peak_threads}t`:'';
+    html+=`<p><b>${r.name||'?'}</b>${r.cpu?' &mdash; '+r.cpu:''}${best?' &mdash; '+best:''}</p>`;
+  });
+  host.innerHTML=html;
+}
+
+renderResults(); renderCommunity();
+</script>
+</body>
+</html>

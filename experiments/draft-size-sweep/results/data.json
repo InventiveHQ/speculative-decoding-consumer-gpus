@@ -1,0 +1,10 @@
+{
+  "experiment": "draft-size-sweep",
+  "has_data": false,
+  "target": null,
+  "backend": null,
+  "gpu": null,
+  "baseline_tps": null,
+  "drafts": [],
+  "community": []
+}

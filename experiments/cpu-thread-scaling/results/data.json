@@ -1,0 +1,10 @@
+{
+  "experiment": "cpu-thread-scaling",
+  "has_data": false,
+  "cpu_name": null,
+  "logical_cores": null,
+  "physical_cores": null,
+  "model": null,
+  "points": [],
+  "community": []
+}

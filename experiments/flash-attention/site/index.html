@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flash Attention: is -fa actually free? — InventiveHQ</title>
+<meta name="description" content="Does llama.cpp's -fa flag speed up generation on a consumer GPU? We sweep three context lengths with flash-attention off vs on, measuring tok/s and VRAM savings at each.">
+<style>
+  :root{
+    --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
+    --green:#76b900;--green-d:#5c9000;--teal:#1aa6a0;--red:#e3543b;--amber:#f0a23b;--slate:#8893a5;
+    --shadow:0 1px 0 rgba(19,22,27,.04),0 12px 30px -18px rgba(19,22,27,.30);
+    --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px}
+  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
+  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  p{margin:.7em 0;color:var(--ink2);font-size:17px}
+  a{color:var(--green-d)}
+  .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
+  header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  .lede{font-size:20px;color:var(--ink2);max-width:680px}
+  .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
+  td.num{font-family:var(--mono);text-align:right}
+  .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
+  .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+</style>
+</head>
+<body>
+<header class="hero"><div class="wrap">
+  <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #7</div>
+  <span class="kicker">● Flash Attention: Speed &amp; VRAM Tradeoff</span>
+  <h1>Flash attention: is -fa actually free?</h1>
+  <p class="lede">The <code class="inl">-fa</code> flag in llama.cpp promises lower KV-cache memory and sometimes faster generation. But does it deliver on a consumer GPU? We sweep three context lengths — 4K, 16K, 32K — with flash-attention off and on, and measure tok/s and VRAM at each.</p>
+</div></header>
+
+<main class="wrap">
+  <h2>The setup</h2>
+  <p>One model, one quant (Qwen2.5-Coder-7B-Instruct Q4_K_M), CUDA backend. The grid: context lengths <b>4096 / 16384 / 32768</b> × flash-attention <b>off / on</b>. For each cell we run the shared 12-prompt suite and record generation tok/s, plus VRAM used via nvidia-smi delta on model load.</p>
+  <p>The story: <b>-fa cuts KV-cache memory</b> — giving more headroom at long context — and can speed up generation by doing the attention computation in a fused kernel. At short context the gains may be negligible; at 32K they should be real. We measure where it helps vs where it's a wash.</p>
+
+  <h2>Results</h2>
+  <div id="results"></div>
+
+  <h2>Community results</h2>
+  <div id="community"></div>
+
+  <h2>Reproduce</h2>
+  <p>Place <code class="inl">Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf</code> in your models dir, then:</p>
+  <pre>python scripts/bench.py --gpu 0          # sweeps 6 cells (3 ctx x fa off/on)
+python scripts/aggregate.py              # -> results/data.json
+python scripts/inject.py                 # bakes into site/index.html</pre>
+  <p>Full guide + how to submit your hardware: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+
+  <footer>
+    <p><b>Methodology.</b> Fixed model (Qwen2.5-Coder-7B-Instruct Q4_K_M), CUDA backend, greedy (temp 0), 256 tokens, shared 12-prompt suite for tok/s. Context lengths: 4096, 16384, 32768. Flash-attention via <code class="inl">-fa on</code> (llama.cpp; flag name has varied across builds — see bench.py comment). VRAM = nvidia-smi used-memory delta on model load (approximate; best on an otherwise-idle GPU). Numbers vary with GPU, driver, and llama.cpp version.</p>
+    <p class="tag">InventiveHQ · code <a href="../../LICENSE">MIT</a>, data <a href="../../DATA-LICENSE.md">CC BY 4.0</a> · part of the local-llm-benchmarks series.</p>
+  </footer>
+</main>
+
+<script>
+const DATA = {
+  "experiment": "flash-attention",
+  "has_data": false,
+  "model": null,
+  "backend": null,
+  "points": [],
+  "contexts": [],
+  "community": []
+};
+const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));
+
+function groupedBarChart(svg, ctxs, points, yKey, colors, unit){
+  const W=820,H=300,padL=52,padR=16,padT=20,padB=44,plotW=W-padL-padR,plotH=H-padT-padB;
+  let max=0;
+  points.forEach(p=>{ if(p[yKey]!=null) max=Math.max(max,p[yKey]); });
+  max=Math.ceil(max/20)*20||100;
+  const n=ctxs.length, gW=plotW/n;
+  const bw=Math.min(52,gW*0.28), gap=6;
+  let o=`<g font-family="var(--sans)">`;
+  for(let i=0;i<=4;i++){
+    const y=padT+plotH-plotH*i/4;
+    o+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eef1f6"/>`;
+    o+=`<text x="${padL-7}" y="${y+4}" text-anchor="end" font-size="10.5" fill="#8893a5">${Math.round(max*i/4)}</text>`;
+  }
+  ctxs.forEach((ctx,gi)=>{
+    const cx=padL+gW*gi+gW/2;
+    [false,true].forEach((fa,bi)=>{
+      const pt=points.find(p=>p.ctx===ctx&&p.fa===fa);
+      const v=pt&&pt[yKey]!=null?pt[yKey]:0;
+      const h=plotH*v/max;
+      const totalW=bw*2+gap;
+      const x=cx-totalW/2+bi*(bw+gap);
+      const y=padT+plotH-h;
+      o+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="4" fill="${colors[bi]}">`;
+      o+=`<animate attributeName="height" from="0" to="${h}" dur="0.6s" fill="freeze"/>`;
+      o+=`<animate attributeName="y" from="${padT+plotH}" to="${y}" dur="0.6s" fill="freeze"/>`;
+      o+=`</rect>`;
+      if(v) o+=`<text x="${x+bw/2}" y="${y-5}" text-anchor="middle" font-size="10" font-weight="700" fill="#13161b">${fmt(v)}</text>`;
+    });
+    const ctxLabel=ctx>=1024?(ctx/1024)+'K':String(ctx);
+    o+=`<text x="${cx}" y="${H-22}" text-anchor="middle" font-size="12" font-weight="700" fill="#3a4250">ctx ${ctxLabel}</text>`;
+  });
+  o+=`<text x="${padL+plotW/2}" y="${H-4}" text-anchor="middle" font-size="11" fill="#8893a5">${unit}</text></g>`;
+  svg.innerHTML=o;
+}
+
+function vramSavingsChart(svg, ctxs, points){
+  const W=820,H=240,padL=52,padR=16,padT=20,padB=44,plotW=W-padL-padR,plotH=H-padT-padB;
+  const savings=ctxs.map(ctx=>{
+    const off=points.find(p=>p.ctx===ctx&&p.fa===false);
+    const on=points.find(p=>p.ctx===ctx&&p.fa===true);
+    const mb=(off&&on&&off.vram_mb!=null&&on.vram_mb!=null)?(off.vram_mb-on.vram_mb):null;
+    return {ctx, mb};
+  });
+  let max=0;
+  savings.forEach(s=>{ if(s.mb!=null) max=Math.max(max,Math.abs(s.mb)); });
+  max=Math.ceil(max/50)*50||200;
+  const n=ctxs.length, gW=plotW/n, bw=Math.min(72,gW*0.5);
+  let o=`<g font-family="var(--sans)">`;
+  for(let i=0;i<=4;i++){
+    const y=padT+plotH-plotH*i/4;
+    o+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eef1f6"/>`;
+    o+=`<text x="${padL-7}" y="${y+4}" text-anchor="end" font-size="10.5" fill="#8893a5">${Math.round(max*i/4)}</text>`;
+  }
+  savings.forEach((s,i)=>{
+    const cx=padL+gW*i+gW/2;
+    const x=cx-bw/2;
+    if(s.mb!=null){
+      const v=Math.max(s.mb,0);
+      const h=v?plotH*v/max:0;
+      const y=padT+plotH-h;
+      const col=s.mb>0?'var(--teal)':'var(--slate)';
+      if(h>0){
+        o+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="4" fill="${col}">`;
+        o+=`<animate attributeName="height" from="0" to="${h}" dur="0.6s" fill="freeze"/>`;
+        o+=`<animate attributeName="y" from="${padT+plotH}" to="${y}" dur="0.6s" fill="freeze"/>`;
+        o+=`</rect>`;
+        o+=`<text x="${cx}" y="${y-5}" text-anchor="middle" font-size="11" font-weight="700" fill="#13161b">${s.mb>0?'+'+s.mb:s.mb} MB</text>`;
+      } else {
+        o+=`<text x="${cx}" y="${padT+plotH-8}" text-anchor="middle" font-size="11" fill="#8893a5">0 MB</text>`;
+      }
+    } else {
+      o+=`<text x="${cx}" y="${padT+plotH/2}" text-anchor="middle" font-size="11" fill="#8893a5">—</text>`;
+    }
+    const ctxLabel=s.ctx>=1024?(s.ctx/1024)+'K':String(s.ctx);
+    o+=`<text x="${cx}" y="${H-22}" text-anchor="middle" font-size="12" font-weight="700" fill="#3a4250">ctx ${ctxLabel}</text>`;
+  });
+  o+=`<text x="${padL+plotW/2}" y="${H-4}" text-anchor="middle" font-size="11" fill="#8893a5">context length</text></g>`;
+  svg.innerHTML=o;
+}
+
+function renderResults(){
+  const host=document.getElementById('results');
+  if(!DATA.has_data){
+    host.innerHTML=`<div class="pending"><b>Results pending.</b><br>Scaffolded and ready — numbers land once the sweep is run on real hardware. Want to be first? See <a href="../../../CONTRIBUTING.md">CONTRIBUTING</a>.</div>`;
+    return;
+  }
+  const pts=DATA.points, ctxs=DATA.contexts;
+  const rows=pts.map(p=>{
+    const ctxLabel=p.ctx>=1024?(p.ctx/1024)+'K':String(p.ctx);
+    return `<tr><td>ctx ${ctxLabel}</td><td><b>${p.fa?'on':'off'}</b></td><td class="num">${fmt(p.tps)}</td><td class="num">${p.vram_mb!=null?p.vram_mb:'—'}</td></tr>`;
+  }).join('');
+  host.innerHTML=`
+    <div class="chartcard"><h3>Generation speed — fa off vs on per context length</h3>
+      <div class="legend"><span><i style="background:var(--slate)"></i>-fa off</span><span><i style="background:var(--green)"></i>-fa on</span></div>
+      <svg id="sp" viewBox="0 0 820 300" width="100%"></svg></div>
+    <div class="chartcard"><h3>VRAM saved by -fa on (MB) — positive = flash-attn uses less</h3>
+      <svg id="vr" viewBox="0 0 820 240" width="100%"></svg></div>
+    <table><tr><th>Context</th><th>Flash Attn</th><th>tok/s</th><th>VRAM MB</th></tr>${rows}</table>`;
+  groupedBarChart(document.getElementById('sp'), ctxs, pts, 'tps',
+    ['var(--slate)','var(--green)'], 'tokens/sec');
+  vramSavingsChart(document.getElementById('vr'), ctxs, pts);
+}
+
+function renderCommunity(){
+  const host=document.getElementById('community');
+  const rows=DATA.community||[];
+  if(!rows.length){ host.innerHTML=`<p>No community submissions yet — run the sweep on your rig and open a PR. See <a href="../../../CONTRIBUTING.md">CONTRIBUTING</a>.</p>`; return; }
+  host.innerHTML=`<p>${rows.length} submission(s) — see results/community/.</p>`;
+}
+
+renderResults(); renderCommunity();
+</script>
+</body>
+</html>
