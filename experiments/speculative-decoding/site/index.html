@@ -82,7 +82,7 @@
       <span>llama.cpp · Windows · Qwen2.5-Coder 7B</span>
     </div>
     <div class="tldr" id="tldr"></div>
-    <p class="tag" style="margin-top:4px">Every speculative run's output is <b>byte-identical</b> to its baseline — speculative decoding changes speed, not answers.</p>
+    <p class="tag" style="margin-top:4px">On NVIDIA (CUDA/Vulkan), every speculative run's output is <b>byte-identical</b> to its baseline — speculative decoding changes speed, not answers.</p>
   </div>
 </header>
 
@@ -178,7 +178,7 @@ llama-server -m Qwen2.5-Coder-7B-Instruct-Q4_K_S.gguf <span class="g">^</span>
   <div class="note" id="methodology"></div>
 
   <footer>
-    <p><b>Methodology.</b> Single GPU, all model layers on it (<code class="inl">--split-mode none -mg 0</code>), context 4096, greedy decoding (temp 0, top-k 1), 256 generated tokens per prompt, a 12-prompt suite spanning code / math / reasoning / summarization / chat. Throughput is the server-reported <code class="inl">predicted_per_second</code> (pure generation rate). Every speculative run's output hash matched its baseline, confirming lossless decoding. Numbers vary with model, quant, draft choice, and prompt mix.</p>
+    <p><b>Methodology.</b> Single GPU, all model layers on it (<code class="inl">--split-mode none -mg 0</code>), context 4096, greedy decoding (temp 0, top-k 1), 256 generated tokens per prompt, a 12-prompt suite spanning code / math / reasoning / summarization / chat. Throughput is the server-reported <code class="inl">predicted_per_second</code> (pure generation rate). Every speculative run's output hash matched its baseline, confirming lossless decoding on the NVIDIA (CUDA/Vulkan) runs. Backend-specific caveat: a community Apple Silicon run found speculative output was <em>not</em> byte-identical on Metal/CPU (minor floating-point non-determinism in batched verification; quality unaffected). Numbers vary with model, quant, draft choice, and prompt mix.</p>
     <p class="tag">InventiveHQ Lab · measured data, hand-authored SVG visuals, no stock images.</p>
   </footer>
 </main>

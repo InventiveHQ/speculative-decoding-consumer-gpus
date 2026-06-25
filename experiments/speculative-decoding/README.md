@@ -46,8 +46,11 @@ summarization / chat).
 6. **Works on CPU too** (Qwen2.5-Coder 3B, `-ngl 0 --device none`): the slowest
    target of all, where speculation pays off most on code/math.
 
-Every speculative run's output hash matched its baseline → **lossless** (it
-changes speed, not answers).
+On the NVIDIA (CUDA/Vulkan) runs, every speculative run's output hash matched its
+baseline → **lossless** (it changes speed, not answers). Backend-specific caveat: a
+community Apple Silicon run found speculative output was *not* byte-identical on
+Metal/CPU (minor floating-point non-determinism in batched verification) — quality
+unaffected, but the strict guarantee held only on the NVIDIA backends here.
 
 ## Quickstart
 
