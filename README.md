@@ -14,7 +14,7 @@ We run the same ideas on consumer GPUs and CPUs, and publish what actually happe
 | # | Experiment | The hook | Status |
 |---|---|---|---|
 | 1 | [Speculative decoding](experiments/speculative-decoding/) | NVIDIA's 15× dFlash trick on a $570 GPU (and an 8-year-old one, and a CPU) — where it helps, where it backfires | ✅ Published |
-| 2 | Runner showdown (Ollama vs llama.cpp vs LM Studio) | "Which wrapper is fastest — and what does the convenience cost you?" | 🔜 Planned |
+| 2 | [Runner showdown](experiments/runner-showdown/) (Ollama vs llama.cpp vs LM Studio) | "Which wrapper is fastest — and what does the convenience cost you?" | 🚧 Scaffolded — results pending |
 | 3 | GGUF quantization: speed vs quality | "Q4 vs Q5 vs Q6 vs Q8 — where does quality fall off a cliff?" | 🔜 Planned |
 
 ## Repo layout

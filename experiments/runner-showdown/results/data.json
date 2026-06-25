@@ -1,0 +1,29 @@
+{
+  "experiment": "runner-showdown",
+  "metric": "wall-clock tokens/sec",
+  "has_data": false,
+  "fastest": null,
+  "runners": [],
+  "categories": [
+    "Code",
+    "Math",
+    "Reasoning",
+    "Summarization",
+    "Chat"
+  ],
+  "cat_keys": [
+    "code",
+    "math",
+    "reasoning",
+    "summarization",
+    "chat"
+  ],
+  "cat_labels": {
+    "code": "Code",
+    "math": "Math",
+    "reasoning": "Reasoning",
+    "summarization": "Summarization",
+    "chat": "Chat"
+  },
+  "community": []
+}

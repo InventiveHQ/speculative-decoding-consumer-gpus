@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ollama vs llama.cpp vs LM Studio — Speed Showdown — InventiveHQ</title>
+<meta name="description" content="Same model, same hardware — which local LLM runner is actually fastest, and what does the convenient wrapper cost you in throughput? Reproducible wall-clock benchmark.">
+<style>
+  :root{
+    --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
+    --green:#76b900;--green-d:#5c9000;--teal:#1aa6a0;--red:#e3543b;--slate:#8893a5;
+    --r1:#76b900;--r2:#1aa6a0;--r3:#5b8def;
+    --shadow:0 1px 0 rgba(19,22,27,.04),0 12px 30px -18px rgba(19,22,27,.30);
+    --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px}
+  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
+  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  p{margin:.7em 0;color:var(--ink2);font-size:17px}
+  a{color:var(--green-d)}
+  .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
+  header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  .lede{font-size:20px;color:var(--ink2);max-width:680px}
+  .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
+  td.num{font-family:var(--mono);text-align:right}
+  .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px}
+  footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
+  .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+</style>
+</head>
+<body>
+<header class="hero"><div class="wrap">
+  <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #2</div>
+  <span class="kicker">● Runner Showdown</span>
+  <h1>Ollama vs llama.cpp vs LM Studio: who's actually fastest?</h1>
+  <p class="lede">Three popular ways to run a local model, the <b>same</b> model and hardware, the same 12-prompt suite. We measure raw <b>wall-clock tokens/sec</b> — and how much throughput the convenient wrapper quietly costs you.</p>
+</div></header>
+
+<main class="wrap">
+  <h2>The setup</h2>
+  <p>All three runners serve the identical model + quant (Qwen2.5-Coder-7B, Q4) over their OpenAI-compatible endpoints; we hit each with the shared suite, greedy, 256 tokens, and time the response end-to-end. Wall-clock tok/s is the fair metric — it counts whatever overhead each runner adds (templating, HTTP, scheduling), not just the model's raw generation rate.</p>
+
+  <h2>Results</h2>
+  <div id="results"></div>
+
+  <h2>Community results</h2>
+  <div id="community"></div>
+
+  <h2>Reproduce</h2>
+  <p>Start each runner with the same model, then run the suite:</p>
+  <pre>llama-server -m Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf -ngl 999 --port 8080 --jinja
+ollama serve              # ollama pull qwen2.5-coder:7b
+# LM Studio: load the same model, start its local server (:1234)
+
+python scripts/bench.py --out results/results.json
+python scripts/aggregate.py && python scripts/inject.py</pre>
+  <p>Full guide + how to submit your hardware: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+
+  <footer>
+    <p><b>Methodology.</b> Same model/quant per runner, OpenAI <code class="inl">/v1/chat/completions</code>, greedy (temp 0), 256 generated tokens, shared 12-prompt suite. Metric = wall-clock <code class="inl">completion_tokens / elapsed</code> for cross-runner fairness. Numbers vary with version, GPU, and config.</p>
+    <p class="tag">InventiveHQ · code MIT, data CC BY 4.0 · part of the local-llm-benchmarks series.</p>
+  </footer>
+</main>
+
+<script>
+const DATA = {
+  "experiment": "runner-showdown",
+  "metric": "wall-clock tokens/sec",
+  "has_data": false,
+  "fastest": null,
+  "runners": [],
+  "categories": [
+    "Code",
+    "Math",
+    "Reasoning",
+    "Summarization",
+    "Chat"
+  ],
+  "cat_keys": [
+    "code",
+    "math",
+    "reasoning",
+    "summarization",
+    "chat"
+  ],
+  "cat_labels": {
+    "code": "Code",
+    "math": "Math",
+    "reasoning": "Reasoning",
+    "summarization": "Summarization",
+    "chat": "Chat"
+  },
+  "community": []
+};
+const RC = ['var(--r1)','var(--r2)','var(--r3)','#f0a23b','#9b59b6'];
+const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));
+
+function groupedChart(svg, runners, catKeys, catLabels){
+  const W=820,H=300,padL=46,padR=16,padT=16,padB=54,plotW=W-padL-padR,plotH=H-padT-padB;
+  let max=0; runners.forEach(r=>catKeys.forEach(c=>max=Math.max(max,(r.cats||{})[c]||0)));
+  max=Math.ceil(max/20)*20||20;
+  let o=`<g font-family="var(--sans)">`;
+  for(let i=0;i<=4;i++){const y=padT+plotH-plotH*i/4;o+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eef1f6"/><text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#8893a5">${Math.round(max*i/4)}</text>`;}
+  const gW=plotW/catKeys.length, bw=Math.min(40,(gW*0.72)/runners.length);
+  catKeys.forEach((c,ci)=>{const gx=padL+gW*ci+gW/2;const tot=bw*runners.length+(runners.length-1)*6;let x=gx-tot/2;
+    runners.forEach((r,ri)=>{const v=(r.cats||{})[c]||0;const h=plotH*v/max;const y=padT+plotH-h;
+      o+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="4" fill="${RC[ri%RC.length]}"><animate attributeName="height" from="0" to="${h}" dur="0.7s" fill="freeze"/><animate attributeName="y" from="${padT+plotH}" to="${y}" dur="0.7s" fill="freeze"/></rect>`;
+      x+=bw+6;});
+    o+=`<text x="${gx}" y="${H-30}" text-anchor="middle" font-size="13" font-weight="700" fill="#3a4250">${catLabels[c]}</text>`;});
+  o+=`<text x="${padL+plotW/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="#8893a5">wall-clock tokens/sec, by task</text></g>`;
+  svg.innerHTML=o;
+}
+
+function renderResults(){
+  const host=document.getElementById('results');
+  if(!DATA.has_data){
+    host.innerHTML=`<div class="pending"><b>Results pending.</b><br>This experiment is scaffolded and ready — numbers land once the benchmark is run on real hardware. Want to be first? See <a href="../../../CONTRIBUTING.md">CONTRIBUTING</a>.</div>`;
+    return;
+  }
+  const rs=DATA.runners;
+  const legend=rs.map((r,i)=>`<span><i style="background:${RC[i%RC.length]}"></i>${r.name}</span>`).join('');
+  const tbl=rs.map((r,i)=>`<tr><td><b>${r.name}</b> <span class="tag">${r.model||''}</span></td><td class="num">${fmt(r.overall)}</td><td class="num">${r.rel}×</td><td class="num">${r.overhead_pct>0?'−'+r.overhead_pct+'%':'—'}</td></tr>`).join('');
+  host.innerHTML=`
+    <p>Fastest: <b>${DATA.fastest}</b>. Overhead = how far behind the fastest runner each one lands on the same model.</p>
+    <div class="chartcard"><h3>Throughput by task</h3><div class="legend">${legend}</div>
+      <svg id="cs" viewBox="0 0 820 300" width="100%"></svg></div>
+    <table><tr><th>Runner</th><th>Overall tok/s</th><th>vs fastest</th><th>Overhead</th></tr>${tbl}</table>`;
+  groupedChart(document.getElementById('cs'), rs, DATA.cat_keys, DATA.cat_labels);
+}
+
+function renderCommunity(){
+  const host=document.getElementById('community');
+  const rows=DATA.community||[];
+  if(!rows.length){ host.innerHTML=`<p>No community submissions yet — run it on your rig and open a PR. See <a href="../../../CONTRIBUTING.md">CONTRIBUTING</a>.</p>`; return; }
+  const tr=rows.map(r=>`<tr><td><b>${r.contributor}</b></td><td>${r.gpu||''}</td><td>${r.fastest}</td><td class="num">${fmt(r.fastest_tps)}</td></tr>`).join('');
+  host.innerHTML=`<table><tr><th>Contributor</th><th>GPU</th><th>Fastest runner</th><th>tok/s</th></tr>${tr}</table>`;
+}
+
+renderResults(); renderCommunity();
+</script>
+</body>
+</html>
