@@ -23,6 +23,29 @@ KNOWN = {
 }
 
 
+def cpu_name():
+    """Best-effort friendly CPU model name across OSes."""
+    try:
+        if platform.system() == "Windows":
+            out = subprocess.check_output(
+                ["powershell", "-NoProfile", "-Command",
+                 "(Get-CimInstance Win32_Processor).Name"],
+                text=True, stderr=subprocess.DEVNULL)
+            if out.strip():
+                return out.strip().splitlines()[0].strip()
+        elif platform.system() == "Linux":
+            for line in open("/proc/cpuinfo"):
+                if line.lower().startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+        elif platform.system() == "Darwin":
+            return subprocess.check_output(
+                ["sysctl", "-n", "machdep.cpu.brand_string"],
+                text=True, stderr=subprocess.DEVNULL).strip()
+    except Exception:
+        pass
+    return platform.processor() or platform.machine()
+
+
 def nvidia_smi():
     try:
         out = subprocess.check_output(
@@ -59,7 +82,7 @@ def main():
         "hardware": {
             "platform": platform.platform(),
             "python": platform.python_version(),
-            "cpu": platform.processor() or platform.machine(),
+            "cpu": cpu_name(),
             "gpus": nvidia_smi(),
         },
         "runs": runs,

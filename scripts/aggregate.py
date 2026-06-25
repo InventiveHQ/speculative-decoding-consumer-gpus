@@ -105,7 +105,9 @@ def x(v):
 def _device_label(key, hw):
     gpus = hw.get("gpus", []) if isinstance(hw, dict) else []
     if key == "cpu":
-        return "CPU"
+        name = (hw.get("cpu") or "").replace("(R)", "").replace("(TM)", "")
+        name = " ".join(name.split())
+        return f"CPU · {name}" if name else "CPU"
     if key == "gpu1":
         return gpus[1]["name"] if len(gpus) > 1 else "GPU 1"
     if key == "gpu_14b":

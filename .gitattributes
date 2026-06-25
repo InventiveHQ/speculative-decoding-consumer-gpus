@@ -1,0 +1,5 @@
+# Normalize line endings so local (Windows) and CI (Linux) rebuilds match byte-for-byte.
+* text=auto eol=lf
+*.png binary
+*.gguf binary
+*.zip binary
