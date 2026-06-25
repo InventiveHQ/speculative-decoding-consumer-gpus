@@ -1,21 +1,21 @@
-"""Runner showdown: Ollama vs llama.cpp vs LM Studio — same model, who's fastest?
+"""Runner showdown: Ollama vs llama.cpp vs LM Studio — across devices.
 
-Measures the throughput each wrapper delivers (and the overhead it adds) on the
-*same* model + quant, using the shared harness and the canonical 12-prompt suite.
+They're all llama.cpp underneath, so this measures the *wrapper tax* (bundled
+version + default flags + HTTP/templating overhead), on the SAME model + quant,
+across each device you can target: 5060 Ti, 1080 Ti, CPU, ...
 
-Assumes each runner is already serving an OpenAI-compatible endpoint with the SAME
-model loaded (that's the fair-fight requirement). Start them first, e.g.:
+bench.py probes whichever runners are currently reachable and tags the run with a
+device label YOU set (after pinning each runner to that device — see README). Run
+once per device:
 
-  llama.cpp : llama-server -m Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf -ngl 999 --port 8080 --jinja
-  ollama    : ollama serve   (then: ollama run qwen2.5-coder:7b once to pull)
-  lm studio : load the same model, start its local server (port 1234)
+  python scripts/bench.py --device 5060ti
+  python scripts/bench.py --device 1080ti
+  python scripts/bench.py --device cpu
 
-Then:  python scripts/bench.py --out results/results.json
-
-Throughput is reported as WALL-CLOCK tokens/sec (completion_tokens / elapsed) so
-the comparison is fair across runners that don't expose llama.cpp-style timings.
+Throughput is WALL-CLOCK tokens/sec (completion_tokens / elapsed) — the fair metric
+across runners that don't expose llama.cpp-style timings.
 """
-import argparse, json, os, sys, time, urllib.request
+import argparse, json, os, sys, urllib.request
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "harness"))
 from prompts import PROMPTS                      # noqa: E402
@@ -26,8 +26,7 @@ ROOT = os.path.dirname(HERE)
 MAX_TOKENS = 256
 
 # Same model across all three. `model` is the id each runner expects; llama.cpp
-# usually ignores it (serves whatever is loaded). Override endpoints/models via a
-# JSON config (--config) if your ports/model ids differ.
+# usually ignores it. Override via --config runners.json if your ports/ids differ.
 RUNNERS = [
     {"name": "llama.cpp", "host": "127.0.0.1", "port": 8080,  "model": "local-model"},
     {"name": "ollama",    "host": "127.0.0.1", "port": 11434, "model": "qwen2.5-coder:7b"},
@@ -49,10 +48,9 @@ def reachable(host, port):
 def bench_runner(r):
     print(f"\n=== {r['name']}  ({r['host']}:{r['port']}, model={r['model']}) ===", flush=True)
     if not reachable(r["host"], r["port"]):
-        print("  NOT REACHABLE — start this runner with the same model, or skip.", flush=True)
+        print("  NOT REACHABLE on this device — skipping.", flush=True)
         return {"name": r["name"], "endpoint": f"{r['host']}:{r['port']}", "model": r["model"],
                 "status": "unreachable"}
-    # warmup
     try:
         lc.chat(r["port"], "Say hello.", host=r["host"], max_tokens=16, model=r["model"])
     except Exception as e:
@@ -63,10 +61,8 @@ def bench_runner(r):
     for pr in PROMPTS:
         try:
             m = lc.measure(r["port"], pr["prompt"], host=r["host"], model=r["model"], max_tokens=MAX_TOKENS)
-            rec = {"id": pr["id"], "category": pr.get("category"),
-                   "tps": m["tps_wallclock"],                 # the fair, comparable metric
-                   "reported_tps": round(m["tps"], 2) if m["tps"] else None,
-                   "predicted_n": m["predicted_n"]}
+            rec = {"id": pr["id"], "category": pr.get("category"), "tps": m["tps_wallclock"],
+                   "reported_tps": round(m["tps"], 2) if m["tps"] else None, "predicted_n": m["predicted_n"]}
             print(f"  {pr['id']:<20} {rec['tps']:>7} tok/s (wall)" if rec["tps"] else f"  {pr['id']}: no tokens", flush=True)
         except Exception as e:
             rec = {"id": pr["id"], "category": pr.get("category"), "error": str(e)}
@@ -78,26 +74,29 @@ def bench_runner(r):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=os.path.join(ROOT, "results", "results.json"))
+    ap.add_argument("--device", default="default",
+                    help="label for the device all runners are pinned to (e.g. 5060ti, 1080ti, cpu)")
+    ap.add_argument("--out", default=None, help="default: results/results-<device>.json")
     ap.add_argument("--config", help="JSON file overriding the RUNNERS list")
     ap.add_argument("--only", help="comma-separated runner names to include")
     args = ap.parse_args()
 
-    runners = RUNNERS
-    if args.config:
-        runners = json.load(open(args.config, encoding="utf-8"))
+    runners = json.load(open(args.config, encoding="utf-8")) if args.config else RUNNERS
     if args.only:
         want = {s.strip().lower() for s in args.only.split(",")}
         runners = [r for r in runners if r["name"].lower() in want]
+    out = args.out or os.path.join(ROOT, "results", f"results-{args.device}.json")
 
-    out = {"meta": {"max_tokens": MAX_TOKENS, "metric": "wall-clock tokens/sec",
+    res = {"meta": {"device": args.device, "max_tokens": MAX_TOKENS,
+                    "metric": "wall-clock tokens/sec",
                     "note": "same model+quant across runners; greedy, 256 tokens, shared 12-prompt suite"},
            "runners": []}
+    print(f"DEVICE = {args.device}")
     for r in runners:
-        out["runners"].append(bench_runner(r))
-        os.makedirs(os.path.dirname(args.out), exist_ok=True)
-        json.dump(out, open(args.out, "w", encoding="utf-8"), indent=2)
-    print(f"\nWrote {args.out}", flush=True)
+        res["runners"].append(bench_runner(r))
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        json.dump(res, open(out, "w", encoding="utf-8"), indent=2)
+    print(f"\nWrote {out}", flush=True)
 
 
 if __name__ == "__main__":

@@ -2,15 +2,12 @@
   "experiment": "runner-showdown",
   "metric": "wall-clock tokens/sec",
   "has_data": false,
-  "fastest": null,
-  "runners": [],
-  "categories": [
-    "Code",
-    "Math",
-    "Reasoning",
-    "Summarization",
-    "Chat"
-  ],
+  "devices": [],
+  "matrix": {
+    "runners": [],
+    "devices": [],
+    "cells": {}
+  },
   "cat_keys": [
     "code",
     "math",

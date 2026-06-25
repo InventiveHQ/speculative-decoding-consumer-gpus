@@ -30,22 +30,36 @@ elapsed`) — the fair cross-runner metric, since it counts each wrapper's real
 overhead (templating, HTTP, scheduling), not just the model's raw generation rate.
 Output: throughput per runner, per task, and each runner's overhead vs the fastest.
 
-## Run it
+## Run it — once per device
 
-Start all three with the *same* model, then benchmark (from this folder):
+We test every device you can target (5060 Ti, 1080 Ti, CPU). For each device:
+pin all three runners to it, then run `bench.py --device <label>` (it probes
+whichever runners are reachable and tags the run). Repeat, then aggregate.
+
+**Device pinning differs per runner** (because we only fully control llama.cpp):
+
+| Runner | 5060 Ti | 1080 Ti | CPU |
+|---|---|---|---|
+| llama.cpp | `CUDA_VISIBLE_DEVICES=0 llama-server -ngl 999 -mg 0 --port 8080` | `CUDA_VISIBLE_DEVICES=1 …` | `llama-server -ngl 0 --device none …` |
+| Ollama | `CUDA_VISIBLE_DEVICES=0 ollama serve` | `CUDA_VISIBLE_DEVICES=1 ollama serve` | `CUDA_VISIBLE_DEVICES= ollama serve` |
+| LM Studio | GUI: select GPU / set GPU offload | GUI: select the 1080 Ti (may not be exposed) | GUI: GPU offload = 0 layers |
+
+(Restart Ollama/llama-server between devices so the env takes effect. All three
+must serve the **same** model + quant.)
 
 ```bash
-llama-server -m Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf -ngl 999 --port 8080 --jinja
-ollama serve                      # first time: ollama pull qwen2.5-coder:7b
-# LM Studio: load the same model, enable its local server (port 1234)
-
-python scripts/bench.py --out results/results.json   # skips any runner that isn't up
-python scripts/aggregate.py        # -> results/data.json
-python scripts/inject.py           # bakes into site/index.html
+python scripts/bench.py --device 5060ti     # -> results/results-5060ti.json
+python scripts/bench.py --device 1080ti     # -> results/results-1080ti.json
+python scripts/bench.py --device cpu        # -> results/results-cpu.json
+python scripts/aggregate.py                 # -> results/data.json (runner x device matrix)
+python scripts/inject.py                    # bakes into site/index.html
 ```
 
-Endpoints/model ids are configurable: edit the `RUNNERS` list in `scripts/bench.py`,
-pass `--config runners.json`, or `--only ollama,llama.cpp`.
+`bench.py` skips any runner not reachable on a device, so gaps are fine — a likely
+one is **a wrapper's bundled llama.cpp lacking Blackwell `sm_120` support**, which
+would show as `n/a` (or a CPU-fallback collapse) on the 5060 Ti. That gap is a
+finding, not a bug. Endpoints/model ids: edit `RUNNERS` in `scripts/bench.py`,
+`--config runners.json`, or `--only ollama,llama.cpp`.
 
 ## Layout
 
