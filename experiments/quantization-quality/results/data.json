@@ -1,0 +1,9 @@
+{
+  "experiment": "quantization-quality",
+  "has_data": false,
+  "model": null,
+  "backend": null,
+  "reference": null,
+  "quants": [],
+  "community": []
+}
