@@ -1,0 +1,63 @@
+name: Rebuild results page
+
+# Validates contributor JSON on PRs, and rebuilds results/data.json + site/index.html
+# when community results land on main. Trigger path is results/community/** only, so the
+# bot's own commit (which touches results/data.json + site/index.html) never re-triggers.
+
+on:
+  pull_request:
+    paths:
+      - "results/community/**"
+      - "scripts/**"
+  push:
+    branches: [main]
+    paths:
+      - "results/community/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate submissions parse
+        run: |
+          python - <<'PY'
+          import glob, json, sys
+          bad = []
+          for f in glob.glob("results/community/*.json"):
+              try:
+                  d = json.load(open(f, encoding="utf-8-sig"))
+                  assert isinstance(d, dict) and "runs" in d, "missing 'runs'"
+              except Exception as e:
+                  bad.append(f"{f}: {e}")
+          if bad:
+              print("Invalid submission(s):"); [print(" -", b) for b in bad]; sys.exit(1)
+          print("All community submissions parse OK.")
+          PY
+
+      - name: Rebuild data.json + page
+        run: |
+          python scripts/aggregate.py
+          python scripts/inject.py
+
+      - name: Commit rebuilt artifacts (main only)
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/data.json site/index.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: rebuild data.json + page from community results [skip ci]"
+            git push
+          fi
