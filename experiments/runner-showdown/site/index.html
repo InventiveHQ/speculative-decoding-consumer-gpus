@@ -44,13 +44,14 @@
 <header class="hero"><div class="wrap">
   <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #2</div>
   <span class="kicker">● Runner Showdown</span>
-  <h1>Ollama vs llama.cpp vs LM Studio: who's actually fastest?</h1>
-  <p class="lede">Three popular ways to run a local model, the <b>same</b> model and hardware, the same 12-prompt suite. We measure raw <b>wall-clock tokens/sec</b> — and how much throughput the convenient wrapper quietly costs you.</p>
+  <h1>They're all llama.cpp underneath — so why is one slower?</h1>
+  <p class="lede">LM Studio and Ollama both run on <b>llama.cpp</b>. So this isn't three engines racing — it's <b>raw llama.cpp vs two convenience layers on top</b>, same model and hardware, same 12-prompt suite. We measure <b>wall-clock tokens/sec</b> to quantify what the convenience actually costs you.</p>
 </div></header>
 
 <main class="wrap">
   <h2>The setup</h2>
-  <p>All three runners serve the identical model + quant (Qwen2.5-Coder-7B, Q4) over their OpenAI-compatible endpoints; we hit each with the shared suite, greedy, 256 tokens, and time the response end-to-end. Wall-clock tok/s is the fair metric — it counts whatever overhead each runner adds (templating, HTTP, scheduling), not just the model's raw generation rate.</p>
+  <p>All three serve the identical model + quant (Qwen2.5-Coder-7B, Q4) over their OpenAI-compatible endpoints; we hit each with the shared suite, greedy, 256 tokens, and time the response end-to-end. Wall-clock tok/s is the fair metric — it counts whatever overhead each layer adds, not just the model's raw generation rate.</p>
+  <p>Since all three are the same engine, any gap comes from what the wrapper decides for you: <b>(1)</b> the llama.cpp <b>version</b> it bundles (often behind upstream), <b>(2)</b> default <b>flags</b> (flash-attention, KV-cache type, batch size, context, <code class="inl">-ngl</code>), and <b>(3)</b> its own <b>HTTP/templating/scheduling overhead</b>. We can't pin Ollama/LM Studio to a specific llama.cpp build — and that's the point: their bundled version and defaults <em>are</em> what you're measuring.</p>
 
   <h2>Results</h2>
   <div id="results"></div>

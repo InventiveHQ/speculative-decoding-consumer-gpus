@@ -3,9 +3,21 @@
 > Experiment #2 in the [local-llm-benchmarks](../../) series. Built on the shared
 > [`harness/`](../../harness/) · contribute: [CONTRIBUTING.md](../../CONTRIBUTING.md)
 
-**Same model, same hardware — which local-LLM runner is actually fastest, and what
-does the convenient wrapper cost you in throughput?** Lots of posts compare these
-on features; almost none measure speed rigorously. This one does.
+**They're all llama.cpp underneath — so why is one slower?** LM Studio and Ollama
+both run on llama.cpp (Ollama for GGUF models; LM Studio bundles llama.cpp, plus
+MLX on Macs). So this isn't three engines racing — it's **raw llama.cpp (the floor)
+vs two convenience layers on top**, and the question is what that convenience costs
+in throughput. Lots of posts compare these on features; almost none measure the
+speed tax. This one does.
+
+The deltas come from three things, all of which the wrapper decides for you:
+1. **which llama.cpp version** it bundles (often behind upstream),
+2. **default flags** (flash-attention, KV-cache type, batch size, context, `-ngl`),
+3. **wrapper overhead** (its HTTP server, prompt templating, scheduling).
+
+We can't force Ollama/LM Studio onto a specific llama.cpp build — and that's the
+point: their bundled version + defaults *are* part of what you're measuring. We hold
+model + quant + prompts + sampling constant and report wall-clock tok/s.
 
 Status: **scaffolded, results pending** (waiting on a hardware run).
 
