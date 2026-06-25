@@ -3,7 +3,7 @@
 Each file here is one contributor's run on their own hardware, produced by
 `python scripts/make_submission.py --name <label>`.
 
-See [../../CONTRIBUTING.md](../../CONTRIBUTING.md) for how to add yours.
+See the repo [CONTRIBUTING.md](../../../../CONTRIBUTING.md) for how to add yours.
 
 Schema (per file):
 

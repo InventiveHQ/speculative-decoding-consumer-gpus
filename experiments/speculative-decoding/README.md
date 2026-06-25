@@ -1,7 +1,10 @@
 # Speculative Decoding on Consumer GPUs
 
+> Experiment #1 in the [local-llm-benchmarks](../../) series. Shared engine:
+> [`harness/`](../../harness/) · contribute: [CONTRIBUTING.md](../../CONTRIBUTING.md)
+
 **How much of NVIDIA's datacenter speculative-decoding speedup actually survives on
-hardware you can buy?** This repo is the reproducible benchmark behind the
+hardware you can buy?** This experiment is the reproducible benchmark behind the
 [InventiveHQ](https://inventivehq.com) article — and an open, growing map of where
 speculative decoding helps (and hurts) across real consumer GPUs and CPUs.
 
@@ -13,7 +16,7 @@ decoding, 256 tokens/prompt, over a 12-prompt suite (code / math / reasoning /
 summarization / chat).
 
 > 📈 **Got a GPU? Add your numbers.** Running the suite takes a few minutes — see
-> [CONTRIBUTING.md](CONTRIBUTING.md). PRs adding `results/community/*.json` welcome.
+> [CONTRIBUTING.md](../../CONTRIBUTING.md). PRs adding `results/community/*.json` welcome.
 
 ## Hardware we've measured so far
 
@@ -48,6 +51,8 @@ changes speed, not answers).
 
 ## Quickstart
 
+Run these from this folder (`experiments/speculative-decoding/`):
+
 ```bash
 # 1. Put llama.cpp binaries in runtimes/{cuda,vulkan}/llama-server.exe
 #    (or point at your own with SPECBENCH_CUDA_EXE / SPECBENCH_VULKAN_EXE)
@@ -60,7 +65,7 @@ python scripts/inject.py           # bakes results into site/index.html
 ```
 
 Full instructions (downloads, CPU runs, bigger models, submitting results) are in
-**[CONTRIBUTING.md](CONTRIBUTING.md)**.
+**[CONTRIBUTING.md](../../CONTRIBUTING.md)**.
 
 ## Layout
 
@@ -93,6 +98,6 @@ models/, runtimes/  large files — NOT in git; download them yourself (see CONT
 
 ## License
 
-- **Code** (`scripts/`, `site/` markup & JS): [MIT](LICENSE).
+- **Code** (`scripts/`, `site/` markup & JS): [MIT](../../LICENSE).
 - **Data & article** (`results/`, `site/index.html` content):
-  [CC BY 4.0](DATA-LICENSE.md).
+  [CC BY 4.0](../../DATA-LICENSE.md).
