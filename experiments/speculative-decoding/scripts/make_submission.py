@@ -62,19 +62,65 @@ def nvidia_smi():
         return []
 
 
+def git_state(path):
+    """Is this results file locally produced/edited, or the repo's committed sample?
+
+    Returns "changed" (modified or untracked — i.e. yours), "clean" (identical to
+    what's committed — almost certainly the repo's sample data, not yours), or
+    None if git is unavailable / the file isn't in a git repo.
+    """
+    try:
+        out = subprocess.check_output(
+            ["git", "status", "--porcelain", "--", os.path.basename(path)],
+            cwd=os.path.dirname(path), text=True, stderr=subprocess.DEVNULL)
+    except Exception:
+        return None
+    return "changed" if out.strip() else "clean"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", required=True, help="short label for your submission, e.g. rtx4090-ryzen7950x")
     ap.add_argument("--notes", default="", help="optional free-text notes (quant, llama.cpp version, etc.)")
+    ap.add_argument("--include", default=None,
+                    help="comma-separated result files to bundle, e.g. 'results.json,results_cpu.json'. "
+                         "By default only files you changed locally are included, so you don't accidentally "
+                         "submit the repo's committed sample data.")
     args = ap.parse_args()
 
+    explicit = {s.strip() for s in args.include.split(",")} if args.include else None
+
     runs = {}
+    skipped, no_git = [], False
     for fname, key in KNOWN.items():
         p = os.path.join(R, fname)
-        if os.path.exists(p):
-            runs[key] = json.load(open(p, encoding="utf-8-sig"))
+        if not os.path.exists(p):
+            continue
+        if explicit is not None:
+            if fname not in explicit:
+                continue
+        else:
+            state = git_state(p)
+            if state == "clean":
+                # Identical to what's committed: this is the repo's sample data, not the
+                # contributor's run. Skip it (the original bug bundled it as if it were theirs).
+                skipped.append(fname)
+                continue
+            if state is None:
+                no_git = True
+        runs[key] = json.load(open(p, encoding="utf-8-sig"))
+
+    if skipped:
+        print("Skipped (unchanged from the repo's committed results — looks like sample data, not yours):")
+        for f in skipped:
+            print(f"  - {f}   (run it, or pass --include {f} if you really did produce it)")
+    if no_git:
+        print("WARNING: git not available, so I can't tell your results from the repo's sample data — "
+              "included every results/*.json present. Double-check the bundled runs, or use --include.")
     if not runs:
-        sys.exit("No results/*.json found. Run the benchmark first (see README).")
+        sys.exit("No new results to bundle. Run the benchmark first (see README), "
+                 "or pass --include <files> to force-include specific result files.")
+    print("Including: " + ", ".join(sorted(runs)))
 
     submission = {
         "name": args.name,
