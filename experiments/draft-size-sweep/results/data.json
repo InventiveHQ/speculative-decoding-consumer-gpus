@@ -31,5 +31,16 @@
       "acceptance": 0.86975
     }
   ],
-  "community": []
+  "community": [
+    {
+      "name": "apple-m3-max",
+      "notes": "Apple M3 Max (Metal), Qwen2.5-Coder-14B Q4_K_M target, 45s cooldown. Baseline (no draft) 27.1 tok/s. ALL draft sizes BACKFIRED: 0.5B 11.1 (0.41x, 32% accept), 1.5B 16.0 (0.59x, 38% accept), 3B 13.3 (0.49x, 45% accept). Opposite of the RTX 5060 Ti, where the 0.5B draft won at 1.37x. On Metal, speculative draft verification overhead exceeds the gain even on a slow 14B target (consistent with the speculative-decoding Metal community result). Acceptance still rises with draft size as on CUDA, but net speed never beats baseline. Use no draft (or n-gram) on Apple Silicon.",
+      "hardware": {
+        "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+        "python": "3.13.4",
+        "cpu": "Apple M3 Max",
+        "gpus": []
+      }
+    }
+  ]
 }

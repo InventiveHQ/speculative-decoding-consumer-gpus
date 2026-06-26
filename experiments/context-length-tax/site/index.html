@@ -252,7 +252,64 @@ const DATA = {
       "ttft_ms": 88.8
     }
   ],
-  "community": []
+  "community": [
+    {
+      "name": "apple-m3-max",
+      "hardware": {
+        "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+        "python": "3.13.4",
+        "cpu": "Apple M3 Max",
+        "gpus": []
+      },
+      "notes": "Apple M3 Max (Metal), Qwen2.5-Coder-7B Q4_K_M, 45s cooldown between configs. Declaring a larger context window (2K->32K) does NOT reduce generation speed: tok/s stable ~41-51 across 4K-32K (the 2K=33 point is a cold-start warmup artifact), and TTFT actually improves 947->514 ms. Confirms the desktop finding on Metal: the context tax is memory, not speed. VRAM not measurable under unified memory.",
+      "meta": {
+        "model": "Qwen2.5-Coder-7B-Instruct",
+        "quant": "Q4_K_M",
+        "backend": "cuda",
+        "gpu": 0,
+        "max_tokens": 256,
+        "ctx_sizes": [
+          2048,
+          4096,
+          8192,
+          16384,
+          32768
+        ]
+      },
+      "points": [
+        {
+          "ctx": 2048,
+          "tps": 33.21,
+          "vram_mb": null,
+          "ttft_ms": 946.8
+        },
+        {
+          "ctx": 4096,
+          "tps": 41.5,
+          "vram_mb": null,
+          "ttft_ms": 700.5
+        },
+        {
+          "ctx": 8192,
+          "tps": 46.32,
+          "vram_mb": null,
+          "ttft_ms": 614.5
+        },
+        {
+          "ctx": 16384,
+          "tps": 49.85,
+          "vram_mb": null,
+          "ttft_ms": 573.6
+        },
+        {
+          "ctx": 32768,
+          "tps": 50.62,
+          "vram_mb": null,
+          "ttft_ms": 513.9
+        }
+      ]
+    }
+  ]
 };
 
 function fmtCtx(n){ return n>=1024 ? (n/1024)+'K' : String(n); }

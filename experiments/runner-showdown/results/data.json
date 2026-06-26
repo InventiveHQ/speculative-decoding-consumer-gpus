@@ -87,5 +87,12 @@
     "summarization": "Summarization",
     "chat": "Chat"
   },
-  "community": []
+  "community": [
+    {
+      "contributor": "apple-m3-max",
+      "gpu": "",
+      "fastest": "llama.cpp",
+      "fastest_tps": 51.0
+    }
+  ]
 }

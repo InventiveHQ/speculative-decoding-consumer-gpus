@@ -249,7 +249,40 @@ const DATA = {
       "tps": 12.69
     }
   ],
-  "community": []
+  "community": [
+    {
+      "name": "apple-m3-max",
+      "cpu": "Apple M3 Max",
+      "points": [
+        {
+          "threads": 1,
+          "tps": 10.51
+        },
+        {
+          "threads": 2,
+          "tps": 19.67
+        },
+        {
+          "threads": 4,
+          "tps": 33.45
+        },
+        {
+          "threads": 6,
+          "tps": 42.42
+        },
+        {
+          "threads": 8,
+          "tps": 46.8
+        },
+        {
+          "threads": 12,
+          "tps": 29.22
+        }
+      ],
+      "peak_tps": 46.8,
+      "peak_threads": 8
+    }
+  ]
 };
 const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));
 

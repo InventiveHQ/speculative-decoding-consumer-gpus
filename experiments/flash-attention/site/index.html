@@ -266,7 +266,55 @@ const DATA = {
     16384,
     32768
   ],
-  "community": []
+  "community": [
+    {
+      "name": "apple-m3-max",
+      "hardware": {
+        "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+        "python": "3.13.4",
+        "cpu": "Apple M3 Max",
+        "gpus": []
+      },
+      "points": [
+        {
+          "ctx": 4096,
+          "fa": false,
+          "tps": 51.1,
+          "vram_mb": null
+        },
+        {
+          "ctx": 4096,
+          "fa": true,
+          "tps": 50.97,
+          "vram_mb": null
+        },
+        {
+          "ctx": 16384,
+          "fa": false,
+          "tps": 52.08,
+          "vram_mb": null
+        },
+        {
+          "ctx": 16384,
+          "fa": true,
+          "tps": 52.57,
+          "vram_mb": null
+        },
+        {
+          "ctx": 32768,
+          "fa": false,
+          "tps": 53.0,
+          "vram_mb": null
+        },
+        {
+          "ctx": 32768,
+          "fa": true,
+          "tps": 52.92,
+          "vram_mb": null
+        }
+      ]
+    }
+  ]
 };
 const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));
 

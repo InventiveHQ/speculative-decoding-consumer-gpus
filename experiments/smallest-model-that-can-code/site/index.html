@@ -287,7 +287,60 @@ const DATA = {
       "pass_pct": 60.0
     }
   ],
-  "community": []
+  "community": [
+    {
+      "name": "apple-m3-max",
+      "notes": "Apple M3 Max (Metal), Qwen2.5-Coder 0.5B->14B Q4 (0.5B Q8_0), 45s cooldown. Speed/pass-rate: 0.5B 226 tok/s 1/10, 1.5B 144 tok/s 1/10, 3B 94.5 tok/s 1/10, 7B 51.9 tok/s 4/10, 14B 24.8 tok/s 5/10. Same capability knee at 7B as the desktop. Sub-7B is fast but can't reliably reason; 14B reasons best but at ~25 tok/s. (Graded on a 10-question math/reasoning proxy, not code execution.)",
+      "hardware": [],
+      "models": [
+        {
+          "label": "0.5B",
+          "file": "Qwen2.5-Coder-0.5B-Instruct-Q8_0.gguf",
+          "file_mb": 531,
+          "vram_mb": null,
+          "tps": 226.55,
+          "pass": 1,
+          "total": 10
+        },
+        {
+          "label": "1.5B",
+          "file": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
+          "file_mb": 986,
+          "vram_mb": null,
+          "tps": 143.86,
+          "pass": 1,
+          "total": 10
+        },
+        {
+          "label": "3B",
+          "file": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+          "file_mb": 1930,
+          "vram_mb": null,
+          "tps": 94.5,
+          "pass": 1,
+          "total": 10
+        },
+        {
+          "label": "7B",
+          "file": "Qwen2.5-Coder-7B-Instruct-Q4_K_S.gguf",
+          "file_mb": 4458,
+          "vram_mb": null,
+          "tps": 51.88,
+          "pass": 4,
+          "total": 10
+        },
+        {
+          "label": "14B",
+          "file": "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf",
+          "file_mb": 8988,
+          "vram_mb": null,
+          "tps": 24.8,
+          "pass": 5,
+          "total": 10
+        }
+      ]
+    }
+  ]
 };
 const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));
 
