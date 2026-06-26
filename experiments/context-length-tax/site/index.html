@@ -77,9 +77,53 @@ python scripts/aggregate.py &amp;&amp; python scripts/inject.py</pre>
 <script>
 const DATA = {
   "experiment": "context-length-tax",
-  "has_data": false,
-  "meta": null,
-  "points": [],
+  "has_data": true,
+  "meta": {
+    "model": "Qwen2.5-Coder-7B-Instruct",
+    "quant": "Q4_K_M",
+    "backend": "cuda",
+    "gpu": 0,
+    "max_tokens": 256,
+    "ctx_sizes": [
+      2048,
+      4096,
+      8192,
+      16384,
+      32768
+    ]
+  },
+  "points": [
+    {
+      "ctx": 2048,
+      "tps": 80.16,
+      "vram_mb": 4559,
+      "ttft_ms": 85.8
+    },
+    {
+      "ctx": 4096,
+      "tps": 81.26,
+      "vram_mb": 4673,
+      "ttft_ms": 86.0
+    },
+    {
+      "ctx": 8192,
+      "tps": 77.83,
+      "vram_mb": 4902,
+      "ttft_ms": 92.5
+    },
+    {
+      "ctx": 16384,
+      "tps": 80.55,
+      "vram_mb": 5125,
+      "ttft_ms": 86.1
+    },
+    {
+      "ctx": 32768,
+      "tps": 80.33,
+      "vram_mb": 6269,
+      "ttft_ms": 88.8
+    }
+  ],
   "community": []
 };
 

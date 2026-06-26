@@ -71,10 +71,46 @@ python scripts/aggregate.py && python scripts/inject.py</pre>
 <script>
 const DATA = {
   "experiment": "vram-offload-cliff",
-  "has_data": false,
-  "model": null,
-  "backend": null,
-  "points": [],
+  "has_data": true,
+  "model": "Qwen2.5-Coder-14B-Instruct",
+  "backend": "cuda",
+  "points": [
+    {
+      "ngl": 0,
+      "tps": 2.89,
+      "vram_mb": 265
+    },
+    {
+      "ngl": 8,
+      "tps": 3.58,
+      "vram_mb": 2161
+    },
+    {
+      "ngl": 16,
+      "tps": 4.24,
+      "vram_mb": 3509
+    },
+    {
+      "ngl": 24,
+      "tps": 5.61,
+      "vram_mb": 4875
+    },
+    {
+      "ngl": 32,
+      "tps": 7.26,
+      "vram_mb": 6241
+    },
+    {
+      "ngl": 40,
+      "tps": 12.5,
+      "vram_mb": 7593
+    },
+    {
+      "ngl": 99,
+      "tps": 43.18,
+      "vram_mb": 9179
+    }
+  ],
   "community": []
 };
 const fmt1 = n => (n == null ? '—' : (Math.round(n * 10) / 10).toFixed(1));

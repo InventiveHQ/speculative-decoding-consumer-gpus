@@ -56,12 +56,20 @@ def chat(port, prompt, host=DEFAULT_HOST, max_tokens=256, temperature=0.0,
         body["model"] = model
     if extra:
         body.update(extra)
-    req = urllib.request.Request(
-        f"http://{host}:{port}/v1/chat/completions",
-        data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read())
+    data = json.dumps(body).encode()
+    # Connection: close avoids keep-alive resets that flaked on long CPU generations.
+    headers = {"Content-Type": "application/json", "Connection": "close"}
+    last = None
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(
+                f"http://{host}:{port}/v1/chat/completions", data=data, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read())
+        except (urllib.error.URLError, ConnectionError, OSError) as e:
+            last = e
+            time.sleep(1.5)
+    raise last
 
 
 def measure(port, prompt, **kw):

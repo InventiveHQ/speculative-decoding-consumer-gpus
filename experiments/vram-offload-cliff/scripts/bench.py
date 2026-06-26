@@ -42,8 +42,21 @@ def gpu_used_mb(idx):
         return None
 
 
+def wait_vram_free(gpu, max_used=1800, timeout=40):
+    """Block until the prior server's VRAM is actually released (avoids a partial
+    offload on the next launch from stale allocations)."""
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        u = gpu_used_mb(gpu)
+        if u is None or u <= max_used:
+            return
+        time.sleep(2)
+
+
 def bench_ngl(ngl, path, backend, gpu):
     print(f"\n=== ngl={ngl} ({'all GPU' if ngl >= 99 else 'partial CPU offload' if ngl > 0 else 'all CPU'}) ===", flush=True)
+    if backend != "cpu":
+        wait_vram_free(gpu)
     before = gpu_used_mb(gpu) if backend != "cpu" else None
     log_path = os.path.join(ROOT, "results", f"server-ngl{ngl}.log")
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -81,7 +94,11 @@ def main():
            "points": []}
 
     for ngl in NGL_SWEEP:
-        r = bench_ngl(ngl, path, args.backend, args.gpu)
+        try:
+            r = bench_ngl(ngl, path, args.backend, args.gpu)
+        except Exception as e:
+            print(f"  NGL={ngl} FAILED: {e} — skipping", flush=True)
+            r = None
         if r:
             res["points"].append(r)
         os.makedirs(os.path.dirname(args.out), exist_ok=True)

@@ -72,9 +72,55 @@ python scripts/aggregate.py && python scripts/inject.py</pre>
 <script>
 const DATA = {
   "experiment": "smallest-model-that-can-code",
-  "has_data": false,
-  "backend": null,
-  "models": [],
+  "has_data": true,
+  "backend": "cuda",
+  "models": [
+    {
+      "label": "0.5B",
+      "file_mb": 531,
+      "vram_mb": 729,
+      "tps": 381.09,
+      "pass": 1,
+      "total": 10,
+      "pass_pct": 10.0
+    },
+    {
+      "label": "1.5B",
+      "file_mb": 986,
+      "vram_mb": 1259,
+      "tps": 231.71,
+      "pass": 0,
+      "total": 10,
+      "pass_pct": 0.0
+    },
+    {
+      "label": "3B",
+      "file_mb": 1930,
+      "vram_mb": 2205,
+      "tps": 157.15,
+      "pass": 1,
+      "total": 10,
+      "pass_pct": 10.0
+    },
+    {
+      "label": "7B",
+      "file_mb": 4458,
+      "vram_mb": 4457,
+      "tps": 87.02,
+      "pass": 4,
+      "total": 10,
+      "pass_pct": 40.0
+    },
+    {
+      "label": "14B",
+      "file_mb": 8988,
+      "vram_mb": 9179,
+      "tps": 43.01,
+      "pass": 6,
+      "total": 10,
+      "pass_pct": 60.0
+    }
+  ],
   "community": []
 };
 const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));

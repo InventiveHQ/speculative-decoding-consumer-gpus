@@ -1,10 +1,12 @@
 {
-  "experiment": "cpu-thread-scaling",
-  "has_data": true,
-  "cpu_name": "Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz",
-  "logical_cores": 12,
-  "physical_cores": 6,
-  "model": "Qwen2.5-Coder-3B-Instruct",
+  "meta": {
+    "model": "Qwen2.5-Coder-3B-Instruct",
+    "cpu_name": "Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz",
+    "logical_cores": 12,
+    "physical_cores": 6,
+    "max_tokens": 256,
+    "ctx": 4096
+  },
   "points": [
     {
       "threads": 1,
@@ -30,6 +32,5 @@
       "threads": 12,
       "tps": 12.69
     }
-  ],
-  "community": []
+  ]
 }

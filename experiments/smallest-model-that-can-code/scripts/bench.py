@@ -102,11 +102,16 @@ def main():
                     "quality": "graded math/reasoning pass-rate (exact-answer matching)"},
            "models": []}
     for m in MODELS:
-        r = bench_model(m, args.backend, args.gpu)
+        try:
+            r = bench_model(m, args.backend, args.gpu)
+        except Exception as e:
+            print(f"  MODEL FAILED ({m['label']}): {e} — skipping", flush=True)
+            r = None
         if r:
             res["models"].append(r)
         os.makedirs(os.path.dirname(args.out), exist_ok=True)
         json.dump(res, open(args.out, "w", encoding="utf-8"), indent=2)
+        time.sleep(2)  # extra VRAM-release headroom between model launches
     print(f"\nWrote {args.out}", flush=True)
 
 

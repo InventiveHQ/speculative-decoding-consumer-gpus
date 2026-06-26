@@ -73,9 +73,41 @@ python scripts/aggregate.py &amp;&amp; python scripts/inject.py</pre>
 <script>
 const DATA = {
   "experiment": "tokens-per-watt",
-  "has_data": false,
-  "meta": {},
-  "points": [],
+  "has_data": true,
+  "meta": {
+    "model": "Qwen2.5-Coder-7B-Instruct",
+    "quant": "Q4_K_M",
+    "gpu": 0,
+    "default_limit_w": 180.0,
+    "max_limit_w": 198.0,
+    "min_limit_w": 150.0,
+    "max_tokens": 256,
+    "ctx": 4096,
+    "backend": "cuda"
+  },
+  "points": [
+    {
+      "watt_limit": 150,
+      "tps": 80.37,
+      "avg_power_w": 147.2,
+      "tps_per_watt": 0.546,
+      "limit_set": true
+    },
+    {
+      "watt_limit": 162,
+      "tps": 81.42,
+      "avg_power_w": 159.3,
+      "tps_per_watt": 0.5111,
+      "limit_set": true
+    },
+    {
+      "watt_limit": 180,
+      "tps": 81.19,
+      "avg_power_w": 172.7,
+      "tps_per_watt": 0.4701,
+      "limit_set": true
+    }
+  ],
   "community": []
 };
 const fmt = n => (n == null ? '—' : (Math.round(n * 10) / 10).toFixed(1));

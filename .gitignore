@@ -11,6 +11,10 @@ runtimes/
 **/results/*_partial.json
 **/results/_unused.json
 
+# Local orchestration helpers (machine-specific paths)
+/run_all.ps1
+/run_reruns.ps1
+
 # Python
 __pycache__/
 *.pyc

@@ -76,12 +76,37 @@ python scripts/aggregate.py &amp;&amp; python scripts/inject.py</pre>
 <script>
 const DATA = {
   "experiment": "cpu-thread-scaling",
-  "has_data": false,
-  "cpu_name": null,
-  "logical_cores": null,
-  "physical_cores": null,
-  "model": null,
-  "points": [],
+  "has_data": true,
+  "cpu_name": "Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz",
+  "logical_cores": 12,
+  "physical_cores": 6,
+  "model": "Qwen2.5-Coder-3B-Instruct",
+  "points": [
+    {
+      "threads": 1,
+      "tps": 5.64
+    },
+    {
+      "threads": 2,
+      "tps": 9.15
+    },
+    {
+      "threads": 4,
+      "tps": 11.76
+    },
+    {
+      "threads": 6,
+      "tps": 11.57
+    },
+    {
+      "threads": 8,
+      "tps": 13.0
+    },
+    {
+      "threads": 12,
+      "tps": 12.69
+    }
+  ],
   "community": []
 };
 const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));

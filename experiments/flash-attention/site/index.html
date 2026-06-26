@@ -73,11 +73,52 @@ python scripts/inject.py                 # bakes into site/index.html</pre>
 <script>
 const DATA = {
   "experiment": "flash-attention",
-  "has_data": false,
-  "model": null,
-  "backend": null,
-  "points": [],
-  "contexts": [],
+  "has_data": true,
+  "model": "Qwen2.5-Coder-7B-Instruct",
+  "backend": "cuda",
+  "points": [
+    {
+      "ctx": 4096,
+      "fa": false,
+      "tps": 81.33,
+      "vram_mb": 4673
+    },
+    {
+      "ctx": 4096,
+      "fa": true,
+      "tps": 82.14,
+      "vram_mb": 4673
+    },
+    {
+      "ctx": 16384,
+      "fa": false,
+      "tps": 82.32,
+      "vram_mb": 5357
+    },
+    {
+      "ctx": 16384,
+      "fa": true,
+      "tps": 82.7,
+      "vram_mb": 5357
+    },
+    {
+      "ctx": 32768,
+      "fa": false,
+      "tps": 83.0,
+      "vram_mb": 6269
+    },
+    {
+      "ctx": 32768,
+      "fa": true,
+      "tps": 82.96,
+      "vram_mb": 6273
+    }
+  ],
+  "contexts": [
+    4096,
+    16384,
+    32768
+  ],
   "community": []
 };
 const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));

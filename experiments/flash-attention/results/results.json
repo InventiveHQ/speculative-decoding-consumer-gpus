@@ -1,8 +1,16 @@
 {
-  "experiment": "flash-attention",
-  "has_data": true,
-  "model": "Qwen2.5-Coder-7B-Instruct",
-  "backend": "cuda",
+  "meta": {
+    "model": "Qwen2.5-Coder-7B-Instruct",
+    "quant": "Q4_K_M",
+    "backend": "cuda",
+    "gpu": 0,
+    "max_tokens": 256,
+    "contexts": [
+      4096,
+      16384,
+      32768
+    ]
+  },
   "points": [
     {
       "ctx": 4096,
@@ -40,11 +48,5 @@
       "tps": 82.96,
       "vram_mb": 6273
     }
-  ],
-  "contexts": [
-    4096,
-    16384,
-    32768
-  ],
-  "community": []
+  ]
 }

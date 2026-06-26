@@ -73,12 +73,37 @@ python scripts/aggregate.py && python scripts/inject.py</pre>
 <script>
 const DATA = {
   "experiment": "draft-size-sweep",
-  "has_data": false,
-  "target": null,
-  "backend": null,
-  "gpu": null,
-  "baseline_tps": null,
-  "drafts": [],
+  "has_data": true,
+  "target": "Qwen2.5-Coder-14B-Instruct",
+  "backend": "cuda",
+  "gpu": "RTX 5060 Ti (Blackwell, sm_120)",
+  "baseline_tps": 42.45,
+  "drafts": [
+    {
+      "label": "0.5B",
+      "file_mb": 531,
+      "tps": 58.25,
+      "speedup": 1.372,
+      "vram_mb": 9769,
+      "acceptance": 0.25719
+    },
+    {
+      "label": "1.5B",
+      "file_mb": 986,
+      "tps": 56.01,
+      "speedup": 1.319,
+      "vram_mb": 10295,
+      "acceptance": 0.39578
+    },
+    {
+      "label": "3B",
+      "file_mb": 1930,
+      "tps": 52.91,
+      "speedup": 1.246,
+      "vram_mb": 11244,
+      "acceptance": 0.86975
+    }
+  ],
   "community": []
 };
 const fmt  = n => (n == null ? '—' : (Math.round(n * 10) / 10).toFixed(1));

@@ -16,14 +16,14 @@ We run the same ideas on consumer GPUs and CPUs, and publish what actually happe
 | 1 | [Speculative decoding](experiments/speculative-decoding/) | NVIDIA's 15× dFlash trick on a $570 GPU (and an 8-year-old one, and a CPU) — where it helps, where it backfires | ✅ Published |
 | 2 | [Runner showdown](experiments/runner-showdown/) (Ollama vs llama.cpp vs LM Studio) | "Which wrapper is fastest — and what does the convenience cost you?" | 🚧 Scaffolded — results pending |
 | 3 | [GGUF quantization](experiments/quantization-quality/): speed vs quality | "Q2 → Q8 — where does quality fall off a cliff?" | 🚧 Scaffolded — results pending |
-| 4 | [KV-cache quantization](experiments/kv-cache-quant/) | "f16 vs q8_0 vs q4_0 KV cache — fit more context per GB, does quality hold?" | 🚧 Scaffolded — results pending |
-| 5 | [The VRAM cliff](experiments/vram-offload-cliff/) (`-ngl` sweep) | "What actually happens when your model doesn't fit in VRAM" | 🚧 Scaffolded — results pending |
-| 6 | [Context-length tax](experiments/context-length-tax/) | "What 2K→32K context costs in throughput and VRAM" | 🚧 Scaffolded — results pending |
-| 7 | [Flash attention](experiments/flash-attention/) | "Is `-fa` actually free on a consumer GPU?" | 🚧 Scaffolded — results pending |
-| 8 | [Tokens per watt](experiments/tokens-per-watt/) | "Cap your GPU's power — keep the speed?" | 🚧 Scaffolded — results pending |
-| 9 | [CPU thread scaling](experiments/cpu-thread-scaling/) | "More CPU threads made my LLM slower" | 🚧 Scaffolded — results pending |
-| 10 | [Draft-model size sweep](experiments/draft-size-sweep/) | "Bigger draft model = faster? Not always." | 🚧 Scaffolded — results pending |
-| 11 | [Smallest model that can code](experiments/smallest-model-that-can-code/) | "How small a model can actually solve problems?" | 🚧 Scaffolded — results pending |
+| 4 | [KV-cache quantization](experiments/kv-cache-quant/) | q8_0 KV ≈ lossless (82% similar); **q4_0 KV wrecks output quality (8%)** | ✅ Results (RTX 5060 Ti) |
+| 5 | [The VRAM cliff](experiments/vram-offload-cliff/) (`-ngl` sweep) | **2.9 → 43 tok/s** as a 14B moves to GPU — the last layers matter most | ✅ Results (RTX 5060 Ti) |
+| 6 | [Context-length tax](experiments/context-length-tax/) | 2K→32K: **~0 tok/s cost, +1.7 GB VRAM** (the tax is memory, not speed) | ✅ Results (RTX 5060 Ti) |
+| 7 | [Flash attention](experiments/flash-attention/) | **`-fa` was a no-op** — identical speed & VRAM (already default-on this build) | ✅ Results (RTX 5060 Ti) |
+| 8 | [Tokens per watt](experiments/tokens-per-watt/) | **−17% power → ~0 speed lost, +16% efficiency** | ✅ Results (RTX 5060 Ti) |
+| 9 | [CPU thread scaling](experiments/cpu-thread-scaling/) | Peaks near the **6 physical cores**; 12 threads slightly slower than 8 | ✅ Results (i7-8700) |
+| 10 | [Draft-model size sweep](experiments/draft-size-sweep/) | **0.5B draft wins (1.37×)** despite lowest acceptance — bigger ≠ faster | ✅ Results (RTX 5060 Ti) |
+| 11 | [Smallest model that can code](experiments/smallest-model-that-can-code/) | Graded pass-rate **1→6 of 10** from 0.5B→14B — need ≥7B to reason | ✅ Results (RTX 5060 Ti) |
 
 ## Repo layout
 

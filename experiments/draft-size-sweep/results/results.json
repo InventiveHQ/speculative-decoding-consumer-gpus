@@ -1,0 +1,126 @@
+{
+  "meta": {
+    "target": "Qwen2.5-Coder-14B-Instruct",
+    "target_file": "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf",
+    "backend": "cuda",
+    "gpu": "RTX 5060 Ti (Blackwell, sm_120)",
+    "gpu_index": 0,
+    "max_tokens": 256,
+    "ctx": 4096,
+    "spec_type": "draft-simple",
+    "spec_draft_n_max": 5
+  },
+  "baseline_tps": 42.45,
+  "baseline_records": [
+    {
+      "id": "code_linkedlist",
+      "category": "code",
+      "tps": 42.48,
+      "predicted_n": 256,
+      "draft_n": null,
+      "draft_n_accepted": null
+    },
+    {
+      "id": "code_lru",
+      "category": "code",
+      "tps": 42.26,
+      "predicted_n": 256,
+      "draft_n": null,
+      "draft_n_accepted": null
+    },
+    {
+      "id": "code_sql",
+      "category": "code",
+      "tps": 42.32,
+      "predicted_n": 256,
+      "draft_n": null,
+      "draft_n_accepted": null
+    },
+    {
+      "id": "math_gsm8k_1",
+      "category": "math",
+      "tps": 42.52,
+      "predicted_n": 256,
+      "draft_n": null,
+      "draft_n_accepted": null
+    },
+    {
+      "id": "math_gsm8k_2",
+      "category": "math",
+      "tps": 42.51,
+      "predicted_n": 256,
+      "draft_n": null,
+      "draft_n_accepted": null
+    },
+    {
+      "id": "math_algebra",
+      "category": "math",
+      "tps": 42.52,
+      "predicted_n": 256,
+      "draft_n": null,
+      "draft_n_accepted": null
+    },
+    {
+      "id": "reason_puzzle",
+      "category": "reasoning",
+      "tps": 42.53,
+      "predicted_n": 256,
+      "draft_n": null,
+      "draft_n_accepted": null
+    },
+    {
+      "id": "reason_plan",
+      "category": "reasoning",
+      "error": "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+    },
+    {
+      "id": "summ_transformer",
+      "category": "summarization",
+      "error": "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+    },
+    {
+      "id": "summ_rewrite",
+      "category": "summarization",
+      "error": "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+    },
+    {
+      "id": "chat_advice",
+      "category": "chat",
+      "error": "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+    },
+    {
+      "id": "chat_explain",
+      "category": "chat",
+      "error": "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+    }
+  ],
+  "drafts": [
+    {
+      "label": "0.5B",
+      "file": "Qwen2.5-Coder-0.5B-Instruct-Q8_0.gguf",
+      "file_mb": 531,
+      "tps": 58.25,
+      "speedup": 1.372,
+      "vram_mb": 9769,
+      "acceptance": 0.25719
+    },
+    {
+      "label": "1.5B",
+      "file": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
+      "file_mb": 986,
+      "tps": 56.01,
+      "speedup": 1.319,
+      "vram_mb": 10295,
+      "acceptance": 0.39578
+    },
+    {
+      "label": "3B",
+      "file": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+      "file_mb": 1930,
+      "tps": 52.91,
+      "speedup": 1.246,
+      "vram_mb": 11244,
+      "acceptance": 0.86975
+    }
+  ]
+}

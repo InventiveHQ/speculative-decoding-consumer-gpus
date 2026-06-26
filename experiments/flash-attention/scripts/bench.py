@@ -104,10 +104,15 @@ def main():
 
     for ctx in CONTEXTS:
         for fa_on in [False, True]:
-            r = bench_one(model_path, ctx, fa_on, args.gpu)
+            try:
+                r = bench_one(model_path, ctx, fa_on, args.gpu)
+            except Exception as e:
+                print(f"  CELL FAILED (ctx={ctx} fa={fa_on}): {e} — skipping", flush=True)
+                r = None
             if r:
                 res["points"].append(r)
             json.dump(res, open(args.out, "w", encoding="utf-8"), indent=2)
+            time.sleep(2)  # extra VRAM-release headroom between launches
 
     print(f"\nWrote {args.out}", flush=True)
     print("Next: python scripts/aggregate.py && python scripts/inject.py")

@@ -1,6 +1,4 @@
 {
-  "experiment": "context-length-tax",
-  "has_data": true,
   "meta": {
     "model": "Qwen2.5-Coder-7B-Instruct",
     "quant": "Q4_K_M",
@@ -46,6 +44,5 @@
       "vram_mb": 6269,
       "ttft_ms": 88.8
     }
-  ],
-  "community": []
+  ]
 }

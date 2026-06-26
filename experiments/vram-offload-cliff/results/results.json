@@ -1,8 +1,21 @@
 {
-  "experiment": "vram-offload-cliff",
-  "has_data": true,
-  "model": "Qwen2.5-Coder-14B-Instruct",
-  "backend": "cuda",
+  "meta": {
+    "model": "Qwen2.5-Coder-14B-Instruct",
+    "quant": "Q4_K_M",
+    "backend": "cuda",
+    "gpu": 0,
+    "ctx": 4096,
+    "max_tokens": 256,
+    "ngl_sweep": [
+      0,
+      8,
+      16,
+      24,
+      32,
+      40,
+      99
+    ]
+  },
   "points": [
     {
       "ngl": 0,
@@ -39,6 +52,5 @@
       "tps": 43.18,
       "vram_mb": 9179
     }
-  ],
-  "community": []
+  ]
 }

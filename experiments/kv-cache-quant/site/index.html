@@ -71,12 +71,34 @@ python scripts/aggregate.py && python scripts/inject.py</pre>
 <script>
 const DATA = {
   "experiment": "kv-cache-quant",
-  "has_data": false,
-  "model": null,
-  "backend": null,
-  "ctx": null,
-  "reference": null,
-  "configs": [],
+  "has_data": true,
+  "model": "Qwen2.5-Coder-7B-Instruct",
+  "backend": "cuda",
+  "ctx": 8192,
+  "reference": "f16",
+  "configs": [
+    {
+      "label": "f16",
+      "vram_mb": 4899,
+      "tps": 81.83,
+      "similarity": 100.0,
+      "is_ref": true
+    },
+    {
+      "label": "q8_0",
+      "vram_mb": 4691,
+      "tps": 76.41,
+      "similarity": 81.6,
+      "is_ref": false
+    },
+    {
+      "label": "q4_0",
+      "vram_mb": 4579,
+      "tps": 80.29,
+      "similarity": 8.3,
+      "is_ref": false
+    }
+  ],
   "community": []
 };
 const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));
