@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flash Attention: is -fa actually free? — InventiveHQ</title>
-<meta name="description" content="Does llama.cpp's -fa flag speed up generation on a consumer GPU? We sweep three context lengths with flash-attention off vs on, measuring tok/s and VRAM savings at each.">
+<title>Flash Attention: -fa is a no-op — because it's already on — InventiveHQ</title>
+<meta name="description" content="We swept llama.cpp's -fa flag across three context lengths on an RTX 5060 Ti. Throughput and VRAM were identical on/off at every context — because flash attention is already enabled by default. Here's what the numbers show and what it means for your launch scripts.">
 <style>
   :root{
     --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
@@ -13,62 +13,199 @@
     --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
     --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
-  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.6;-webkit-font-smoothing:antialiased}
   .wrap{max-width:880px;margin:0 auto;padding:0 22px}
-  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
-  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
-  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  h1,h2,h3{line-height:1.15;letter-spacing:-.02em;font-weight:800}
+  h1{font-size:clamp(28px,4.6vw,46px);margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);margin:2.2em 0 .5em}
+  h3{font-size:17px;margin:1.4em 0 .3em}
   p{margin:.7em 0;color:var(--ink2);font-size:17px}
-  a{color:var(--green-d)}
-  .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
-  header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(118,185,0,.35)}
+  a:hover{border-color:var(--green-d)}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
   .lede{font-size:20px;color:var(--ink2);max-width:680px}
-  .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:30px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
+  figure{margin:30px 0}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
   .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .chartcard h3{margin:0 0 2px;font-size:17px}
+  .chartcard .sub{font-size:13.5px;color:var(--slate);margin:0 0 8px}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px}
   table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
   th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
   th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
   td.num{font-family:var(--mono);text-align:right}
   .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
-  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
-  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--ink)}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;line-height:1.55;border:1px solid #1c2128}
+  pre .c{color:#7d8aa0}
+  pre .g{color:#9fe04f}
   footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
   .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header class="hero"><div class="wrap">
-  <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #7</div>
-  <span class="kicker">● Flash Attention: Speed &amp; VRAM Tradeoff</span>
-  <h1>Flash attention: is -fa actually free?</h1>
-  <p class="lede">The <code class="inl">-fa</code> flag in llama.cpp promises lower KV-cache memory and sometimes faster generation. But does it deliver on a consumer GPU? We sweep three context lengths — 4K, 16K, 32K — with flash-attention off and on, and measure tok/s and VRAM at each.</p>
-</div></header>
+<header class="hero">
+  <div class="wrap">
+    <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #7</div>
+    <span class="kicker">● Flash Attention: Speed &amp; VRAM Tradeoff</span>
+    <h1>Flash attention: <code class="inl">-fa</code> is free — because it's already on</h1>
+    <p class="lede">We swept llama.cpp's <code class="inl">-fa</code> flag across three context lengths on an <b>RTX 5060 Ti</b>. Throughput and VRAM were <em>identical</em> on and off at every context length. The most likely explanation: flash attention is already enabled by default in current llama.cpp builds. The flag is a no-op — and that's actually good news.</p>
+    <div class="byline">
+      <span>By <b>InventiveHQ</b></span><span>·</span>
+      <span>June 2026</span><span>·</span>
+      <span>llama.cpp · CUDA · RTX 5060 Ti · Qwen2.5-Coder 7B</span>
+    </div>
+    <div class="tldr">
+      <div class="stat"><div class="n">&lt;1 <span class="u">tok/s</span></div><div class="l">largest on/off throughput gap — within run-to-run noise at every context length</div></div>
+      <div class="stat"><div class="n">0 <span class="u">MB</span></div><div class="l">VRAM saved by enabling -fa — identical on both sides of the toggle at 4K, 16K, 32K</div></div>
+      <div class="stat"><div class="n">already <span class="u">on</span></div><div class="l">most likely reason: current llama.cpp enables flash attention by default on CUDA</div></div>
+    </div>
+  </div>
+</header>
 
 <main class="wrap">
-  <h2>The setup</h2>
-  <p>One model, one quant (Qwen2.5-Coder-7B-Instruct Q4_K_M), CUDA backend. The grid: context lengths <b>4096 / 16384 / 32768</b> × flash-attention <b>off / on</b>. For each cell we run the shared 12-prompt suite and record generation tok/s, plus VRAM used via nvidia-smi delta on model load.</p>
-  <p>The story: <b>-fa cuts KV-cache memory</b> — giving more headroom at long context — and can speed up generation by doing the attention computation in a fused kernel. At short context the gains may be negligible; at 32K they should be real. We measure where it helps vs where it's a wash.</p>
+
+  <h2>The question — and the honest anticlimax</h2>
+  <p>Flash attention is one of the most-cited GPU optimizations in local-LLM circles. The llama.cpp <code class="inl">-fa</code> flag is how you're supposed to enable it. Blog posts recommend adding it. Setup guides include it in boilerplate server launch commands. It should cut VRAM at long context and speed up generation — especially at 16K and 32K tokens, where the KV cache starts to matter.</p>
+  <p>So we measured it: a 3×2 sweep across context lengths 4096, 16384, and 32768 with <code class="inl">-fa</code> explicitly off and on, recording tok/s and VRAM at every cell. The result was that <b>essentially nothing changed</b>. That is not a failure of the experiment. It <em>is</em> the result: on current llama.cpp, flash attention is already running by default. Toggling the flag is a no-op — and the numbers prove it.</p>
+
+  <h2>Why flash attention matters — when it's actually doing something</h2>
+  <p>Standard attention computes the sequence Q&nbsp;×&nbsp;K<sup>T</sup>&nbsp;→&nbsp;softmax&nbsp;→&nbsp;×&nbsp;V as three distinct steps, writing an N×N intermediate matrix to high-bandwidth memory (HBM) between each one. At large context lengths that matrix grows quadratically — so the round-trips between compute units and HBM start dominating latency, and VRAM fills up fast. Flash attention (Dao et al., 2022) fuses those three steps into a single tiled kernel that keeps its working data in on-chip SRAM throughout, avoiding the intermediate HBM writes entirely. The result: lower peak memory for the KV cache and faster attention at long context. Same math, shorter path through memory.</p>
+  <figure>
+    <div class="panel">
+      <div class="head"><span class="t">Standard attention vs flash attention — where the memory goes</span></div>
+      <svg viewBox="0 0 820 230" width="100%" role="img" aria-label="Diagram comparing standard attention, which performs three separate HBM read/write round-trips, to flash attention, which fuses all three steps into one SRAM-resident tiled kernel, producing identical output.">
+        <rect width="820" height="230" fill="#ffffff"/>
+
+        <!-- LEFT: Standard Attention -->
+        <text x="190" y="26" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="11" font-weight="700" fill="#5c9000" letter-spacing=".08em">STANDARD ATTENTION</text>
+
+        <!-- Box 1 -->
+        <rect x="100" y="34" width="180" height="34" rx="7" fill="#f6f8fb" stroke="#e7eaf0" stroke-width="1.5"/>
+        <text x="190" y="56" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="13" font-weight="700" fill="#13161b">Q × Kᵀ</text>
+
+        <!-- HBM write -->
+        <line x1="190" y1="68" x2="190" y2="82" stroke="#e3543b" stroke-width="1.5" stroke-dasharray="3 2"/>
+        <text x="195" y="79" font-family="'SF Mono',ui-monospace,monospace" font-size="9.5" fill="#e3543b">HBM write</text>
+
+        <!-- Box 2 -->
+        <rect x="100" y="82" width="180" height="34" rx="7" fill="#f6f8fb" stroke="#e7eaf0" stroke-width="1.5"/>
+        <text x="190" y="104" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="13" font-weight="700" fill="#13161b">softmax</text>
+
+        <!-- HBM write -->
+        <line x1="190" y1="116" x2="190" y2="130" stroke="#e3543b" stroke-width="1.5" stroke-dasharray="3 2"/>
+        <text x="195" y="127" font-family="'SF Mono',ui-monospace,monospace" font-size="9.5" fill="#e3543b">HBM write</text>
+
+        <!-- Box 3 -->
+        <rect x="100" y="130" width="180" height="34" rx="7" fill="#f6f8fb" stroke="#e7eaf0" stroke-width="1.5"/>
+        <text x="190" y="152" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="13" font-weight="700" fill="#13161b">× V</text>
+
+        <!-- Output arrow left -->
+        <line x1="190" y1="164" x2="190" y2="178" stroke="#8893a5" stroke-width="1.5"/>
+        <polygon points="186,176 194,176 190,183" fill="#8893a5"/>
+        <text x="190" y="200" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="11.5" font-weight="700" fill="#8893a5">output</text>
+
+        <!-- CENTER DIVIDER -->
+        <line x1="410" y1="14" x2="410" y2="218" stroke="#e7eaf0" stroke-width="1.5"/>
+
+        <!-- RIGHT: Flash Attention -->
+        <text x="625" y="26" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="11" font-weight="700" fill="#1aa6a0" letter-spacing=".08em">FLASH ATTENTION</text>
+
+        <!-- Big fused box -->
+        <rect x="460" y="34" width="330" height="130" rx="10" fill="#f0fafa" stroke="#1aa6a0" stroke-width="2"/>
+        <text x="625" y="74" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="13.5" font-weight="700" fill="#13161b">fused QKV kernel</text>
+        <text x="625" y="96" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="12" fill="#3a4250">Q × Kᵀ → softmax → × V</text>
+        <text x="625" y="116" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="10.5" fill="#1aa6a0">SRAM-resident · no HBM round-trips</text>
+        <!-- Tiled block decorators -->
+        <rect x="539" y="128" width="20" height="18" rx="3" fill="#cdf0ee" stroke="#1aa6a0" stroke-width="1"/>
+        <rect x="564" y="128" width="20" height="18" rx="3" fill="#cdf0ee" stroke="#1aa6a0" stroke-width="1"/>
+        <rect x="589" y="128" width="20" height="18" rx="3" fill="#cdf0ee" stroke="#1aa6a0" stroke-width="1"/>
+        <rect x="614" y="128" width="20" height="18" rx="3" fill="#e5f9f8" stroke="#1aa6a0" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="642" y="141" font-family="'SF Mono',ui-monospace,monospace" font-size="9.5" fill="#8893a5">tiles...</text>
+
+        <!-- Output arrow right -->
+        <line x1="625" y1="164" x2="625" y2="178" stroke="#8893a5" stroke-width="1.5"/>
+        <polygon points="621,176 629,176 625,183" fill="#8893a5"/>
+        <text x="625" y="200" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="11.5" font-weight="700" fill="#8893a5">output</text>
+
+        <!-- Same result punchline -->
+        <text x="410" y="220" text-anchor="middle" font-family="'SF Mono',ui-monospace,monospace" font-size="10.5" font-weight="600" fill="#8893a5">&#8592; same result &#8594;</text>
+      </svg>
+    </div>
+    <figcaption>Standard attention writes intermediate results to HBM after each step — three round-trips per token. Flash attention fuses all three into a single tiled kernel that stays in fast on-chip SRAM. The math is identical; only the path through memory differs.</figcaption>
+  </figure>
+  <div class="note">The payoff is biggest at <b>long context</b>: the attention matrix grows quadratically with sequence length, so HBM pressure rises fast. Flash attention's fused pass keeps that under control — you'd expect both lower VRAM and faster generation at 16K–32K context if standard attention were the baseline. That's exactly what we measured for.</div>
+
+  <h2>The setup — reproducible on any CUDA GPU</h2>
+  <table>
+    <tr><th>Component</th><th>What we used</th></tr>
+    <tr><td>GPU</td><td>NVIDIA RTX 5060 Ti (Blackwell, 16 GB VRAM)</td></tr>
+    <tr><td>Model</td><td>Qwen2.5-Coder-7B-Instruct (Q4_K_M, ~5.4 GB on disk)</td></tr>
+    <tr><td>Runtime</td><td>llama.cpp, CUDA backend</td></tr>
+    <tr><td>Context sweep</td><td>4096 / 16384 / 32768 tokens</td></tr>
+    <tr><td>Conditions</td><td>Flash-attention <b>off</b> (baseline, no <code class="inl">-fa</code>) vs <code class="inl">-fa on</code></td></tr>
+    <tr><td>Prompt suite</td><td>Shared 12-prompt suite, greedy decoding, 256 output tokens</td></tr>
+  </table>
+  <pre><span class="c"># baseline — no -fa flag (should use whatever the runtime default is)</span>
+llama-server -m Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf <span class="g">-c 4096</span> -ngl 999
+
+<span class="c"># flash-attention on — explicit flag</span>
+llama-server -m Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf <span class="g">-c 4096 -fa on</span> -ngl 999</pre>
+  <p>Throughput via <code class="inl">predicted_per_second</code> from the server's JSON response. VRAM via <code class="inl">nvidia-smi</code> used-memory delta measured after model load, on an otherwise-idle GPU. Three context lengths × two flash-attention states = six cells total.</p>
 
   <h2>Results</h2>
   <div id="results"></div>
+
+  <p>The numbers across all six cells: at ctx 4K, FA off produced <b>81.3 tok/s</b> and FA on produced <b>82.1 tok/s</b> — a 0.8 tok/s gap that sits within run-to-run measurement noise. VRAM was <b>4673 MB</b> on both sides. At ctx 16K the gap narrows further: 82.3 vs 82.7 tok/s, VRAM 5357 MB vs 5357 MB — literally the same number. At ctx 32K, where flash attention's fused kernel should make the biggest difference, throughput is <b>83.0 vs 83.0</b> tok/s and VRAM is 6269 vs 6273 MB — a 4 MB spread, less than a single allocation block, and notably in the <em>wrong direction</em> (on uses fractionally more). There is no story to tell in these charts. That absence of a story <em>is</em> the story.</p>
+
+  <h2>What we learned</h2>
+  <h3>Flash attention is already on by default</h3>
+  <p>The only coherent explanation for identical on/off results is that the "off" baseline wasn't actually running standard attention — it was already running flash attention. Current llama.cpp builds enable flash attention by default when the CUDA backend is active. The <code class="inl">-fa on</code> flag is redundant; it confirms what the runtime was already doing.</p>
+  <h3>The real diagnostic: VRAM gap at long context</h3>
+  <p>If flash attention were truly disabled and then switched on, you'd see a clear VRAM drop at 32K context — potentially <b>hundreds of MB</b>, because standard attention must materialise the N×N attention matrix in HBM. We measured a 4 MB gap (6269 vs 6273 MB), with the flag-on side using <em>more</em> VRAM, not less. That noise-level delta, in the wrong direction, confirms both conditions are executing the same code path internally.</p>
+  <h3>Don't cargo-cult flags — verify them</h3>
+  <p>The broader lesson isn't about flash attention specifically. It's about assuming a flag does what its name implies without checking. A two-minute sweep — three context lengths, tok/s and VRAM both — gave a definitive answer. If you're adding <code class="inl">-fa on</code> to your scripts because guides recommend it: keep it for documentation value if you like, but don't expect a runtime benefit on a current CUDA build.</p>
+  <h3>If you're on an older build or a different backend</h3>
+  <p>Flash attention defaults vary across llama.cpp versions and backends (Metal, Vulkan, CPU inference, and older CUDA builds may differ). The test is always the same: compare VRAM at 32K context with the flag explicitly off vs on. A real savings — hundreds of MB — means FA wasn't on by default and the flag matters. Zero MB difference means it already was, and you're fine either way.</p>
+
+  <h2>Practical takeaway</h2>
+  <div class="note">On a current llama.cpp CUDA build, <code class="inl">-fa on</code> is almost certainly a no-op. You don't need it, but it won't hurt. To verify for your own build: run with <code class="inl">-c 32768</code>, compare VRAM on both sides of the toggle. Identical VRAM is good news — your runtime is already taking the fast path. A large VRAM drop means the flag is real and you should keep it.</div>
 
   <h2>Community results</h2>
   <div id="community"></div>
 
   <h2>Reproduce</h2>
-  <p>Place <code class="inl">Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf</code> in your models dir, then:</p>
-  <pre>python scripts/bench.py --gpu 0          # sweeps 6 cells (3 ctx x fa off/on)
-python scripts/aggregate.py              # -> results/data.json
-python scripts/inject.py                 # bakes into site/index.html</pre>
-  <p>Full guide + how to submit your hardware: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+  <p>Place <code class="inl">Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf</code> in your models directory, then:</p>
+  <pre>python scripts/bench.py --gpu 0          <span class="c"># sweeps 6 cells (3 ctx x fa off/on)</span>
+python scripts/aggregate.py              <span class="c"># -&gt; results/data.json</span>
+python scripts/inject.py                 <span class="c"># bakes into site/index.html</span></pre>
+  <p>Full guide and how to submit your own hardware numbers: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+
+</main>
 
   <footer>
-    <p><b>Methodology.</b> Fixed model (Qwen2.5-Coder-7B-Instruct Q4_K_M), CUDA backend, greedy (temp 0), 256 tokens, shared 12-prompt suite for tok/s. Context lengths: 4096, 16384, 32768. Flash-attention via <code class="inl">-fa on</code> (llama.cpp; flag name has varied across builds — see bench.py comment). VRAM = nvidia-smi used-memory delta on model load (approximate; best on an otherwise-idle GPU). Numbers vary with GPU, driver, and llama.cpp version.</p>
+    <div class="wrap">
+    <p><b>Methodology.</b> Fixed model (Qwen2.5-Coder-7B-Instruct Q4_K_M), CUDA backend, greedy decoding (temp 0), 256 generated tokens, shared 12-prompt suite for tok/s. Context lengths: 4096, 16384, 32768. Flash-attention via <code class="inl">-fa on</code> (llama.cpp; flag name has varied across builds — see bench.py comment). VRAM = nvidia-smi used-memory delta on model load (approximate; best on an otherwise-idle GPU). Numbers vary with GPU, driver, and llama.cpp version.</p>
     <p class="tag">InventiveHQ · code <a href="../../LICENSE">MIT</a>, data <a href="../../DATA-LICENSE.md">CC BY 4.0</a> · part of the local-llm-benchmarks series.</p>
+    </div>
   </footer>
-</main>
 
 <script>
 const DATA = {

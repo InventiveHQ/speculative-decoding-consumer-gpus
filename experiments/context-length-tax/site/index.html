@@ -4,27 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The context-length tax: what 2K→32K costs you — InventiveHQ</title>
-<meta name="description" content="Declaring a larger context window costs throughput and VRAM even when you don't fill it. This sweep quantifies the % drop and GB cost from 2K to 32K on a fixed model and quant.">
+<meta name="description" content="Declaring a bigger context window costs ~1.7 GB of VRAM — but not a single tok/s of generation speed. We sweep Qwen2.5-Coder-7B from 2K to 32K and measure exactly what you pay.">
 <style>
   :root{
-    --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
+    --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#ffffff;--bg2:#f6f8fb;
     --green:#76b900;--green-d:#5c9000;--teal:#1aa6a0;--red:#e3543b;--amber:#f0a23b;--slate:#8893a5;
     --shadow:0 1px 0 rgba(19,22,27,.04),0 12px 30px -18px rgba(19,22,27,.30);
     --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
     --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
-  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.6;-webkit-font-smoothing:antialiased}
   .wrap{max-width:880px;margin:0 auto;padding:0 22px}
-  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
-  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
-  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  h1,h2,h3{line-height:1.15;letter-spacing:-.02em;font-weight:800}
+  h1{font-size:clamp(28px,4.6vw,46px);margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);margin:2.2em 0 .5em}
+  h3{font-size:17px;margin:1.4em 0 .3em}
   p{margin:.7em 0;color:var(--ink2);font-size:17px}
-  a{color:var(--green-d)}
-  .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
-  header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(118,185,0,.35)}
+  a:hover{border-color:var(--green-d)}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
   .lede{font-size:20px;color:var(--ink2);max-width:680px}
+  header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:30px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .n .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
+  figure{margin:30px 0}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
   .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
   .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .chartcard h3{margin:0 0 2px}
+  .chartcard .sub{font-size:13.5px;color:var(--slate);margin:0 0 8px}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
   table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
@@ -32,32 +50,132 @@
   th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
   td.num{font-family:var(--mono);text-align:right}
   .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
-  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
-  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--ink)}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;line-height:1.55;border:1px solid #1c2128}
+  pre .c{color:#7d8aa0}
+  pre .g{color:#9fe04f}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px}
+  .good{color:var(--green-d)}
+  .bad{color:var(--red)}
   footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
   .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header class="hero"><div class="wrap">
-  <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #6</div>
-  <span class="kicker">● Context-Length Tax</span>
-  <h1>The context-length tax: what 2K→32K costs you</h1>
-  <p class="lede">Declaring a larger context window costs throughput and VRAM <b>even when you don't fill it.</b> Same model, same quant — we sweep 2 048 → 32 768 tokens and measure exactly how much speed and memory you're paying per extra kilotoken of headroom.</p>
-</div></header>
+<header class="hero">
+  <div class="wrap">
+    <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #6</div>
+    <span class="kicker">● InventiveHQ Lab · Hands-on</span>
+    <h1>The context-length tax: what 2K→32K costs you</h1>
+    <p class="lede">Everyone cranks <code class="inl">-c 32768</code> "just in case." Reserving that headroom costs <b>~1.7 GB of VRAM</b> immediately — but not a single tok/s of generation speed. Here's the sweep across five context sizes, on real hardware.</p>
+    <div class="byline">
+      <span>By <b>InventiveHQ</b></span><span>·</span>
+      <span>June 2026</span><span>·</span>
+      <span>llama.cpp · CUDA · Qwen2.5-Coder-7B Q4_K_M · RTX 5060 Ti</span>
+    </div>
+    <div class="tldr">
+      <div class="stat"><div class="n">+1.7<span class="u"> GB</span></div><div class="l">VRAM cost of going 2K → 32K (4,559 → 6,269 MiB)</div></div>
+      <div class="stat"><div class="n">~80<span class="u"> tok/s</span></div><div class="l">generation speed — flat across all five context sizes</div></div>
+      <div class="stat"><div class="n">+3<span class="u"> ms</span></div><div class="l">extra time-to-first-token at 32K vs 2K — mostly noise</div></div>
+    </div>
+  </div>
+</header>
 
 <main class="wrap">
+
+  <h2>Why context length matters</h2>
+  <p>When you launch <code class="inl">llama-server</code> with <code class="inl">-c 32768</code>, the runtime allocates a <b>KV-cache</b> sized for the full 32,768 tokens — right now, before your first prompt arrives. The model has no idea how long your actual inputs will be; it reserves the worst case up front.</p>
+  <p>The common pattern is to set context large "just in case" — a long coding session, a big paste, a multi-turn conversation. But that reservation has a cost. This experiment makes it concrete: same model, same quant, five context sizes from 2K to 32K. What do you actually pay?</p>
+
+  <h2>How it works</h2>
+  <figure>
+    <div class="panel">
+      <div class="head"><span class="t">Declaring a bigger context window — what actually changes</span></div>
+      <svg viewBox="0 0 820 260" width="100%" role="img"
+        aria-label="Three-panel diagram: context bar grows from 2K to 32K; generation speed stays flat at ~80 tok/s; VRAM bars show 4.5 GB at 2K rising to 6.2 GB at 32K">
+        <!-- background -->
+        <rect width="820" height="260" fill="#f6f8fb"/>
+        <!-- panel dividers -->
+        <line x1="273" y1="14" x2="273" y2="246" stroke="#e7eaf0" stroke-width="1.5"/>
+        <line x1="547" y1="14" x2="547" y2="246" stroke="#e7eaf0" stroke-width="1.5"/>
+
+        <!-- ===== Panel 1: Context window (center x=136) ===== -->
+        <text x="136" y="30" text-anchor="middle" font-family="var(--mono)" font-size="10.5" font-weight="700" letter-spacing="1" fill="#5c9000">CONTEXT WINDOW</text>
+        <text x="136" y="56" text-anchor="middle" font-family="var(--sans)" font-size="14" font-weight="800" fill="#13161b">grows 2 K → 32 K</text>
+        <!-- track background -->
+        <rect x="36" y="88" width="200" height="26" rx="7" fill="#e7eaf0"/>
+        <!-- animated green fill -->
+        <rect x="36" y="88" width="30" height="26" rx="7" fill="#76b900">
+          <animate attributeName="width" values="30;200;200;30" keyTimes="0;0.38;0.62;1" dur="4s" repeatCount="indefinite"/>
+        </rect>
+        <!-- range labels -->
+        <text x="36" y="130" font-family="var(--sans)" font-size="12" fill="#8893a5">2 K</text>
+        <text x="236" y="130" text-anchor="end" font-family="var(--sans)" font-size="12" fill="#8893a5">32 K</text>
+        <!-- sub note -->
+        <text x="136" y="158" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="#3a4250">KV-cache allocated up front</text>
+        <!-- verdict -->
+        <text x="136" y="242" text-anchor="middle" font-family="var(--sans)" font-size="12" font-weight="600" fill="#5c9000">reserved before any prompt</text>
+
+        <!-- ===== Panel 2: Generation speed (center x=410) ===== -->
+        <text x="410" y="30" text-anchor="middle" font-family="var(--mono)" font-size="10.5" font-weight="700" letter-spacing="1" fill="#13161b">GENERATION SPEED</text>
+        <text x="410" y="56" text-anchor="middle" font-family="var(--sans)" font-size="14" font-weight="800" fill="#13161b">stays flat</text>
+        <!-- gauge box -->
+        <rect x="365" y="78" width="90" height="94" rx="10" fill="#eaf5d8" stroke="#76b900" stroke-width="2"/>
+        <!-- big number -->
+        <text x="410" y="138" text-anchor="middle" font-family="var(--mono)" font-size="30" font-weight="800" fill="#5c9000">~80</text>
+        <text x="410" y="157" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#8893a5">tok / s</text>
+        <!-- verdict -->
+        <text x="410" y="242" text-anchor="middle" font-family="var(--sans)" font-size="12" font-weight="600" fill="#5c9000">&#10003; no penalty</text>
+
+        <!-- ===== Panel 3: VRAM (center x=683) ===== -->
+        <text x="683" y="30" text-anchor="middle" font-family="var(--mono)" font-size="10.5" font-weight="700" letter-spacing="1" fill="#1aa6a0">VRAM RESERVED</text>
+        <text x="683" y="56" text-anchor="middle" font-family="var(--sans)" font-size="14" font-weight="800" fill="#13161b">rises +1.7 GB</text>
+        <!-- 2K bar: 4559/6269*118 ≈ 86px, bottom at y=204, top at y=118 -->
+        <rect x="630" y="118" width="44" height="86" rx="5" fill="#1aa6a0" opacity="0.40"/>
+        <text x="652" y="111" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#8893a5">4.5 GB</text>
+        <text x="652" y="220" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#8893a5">2 K</text>
+        <!-- 32K bar: full 118px, bottom at y=204, top at y=86 -->
+        <rect x="706" y="86" width="44" height="118" rx="5" fill="#1aa6a0"/>
+        <text x="728" y="79" text-anchor="middle" font-family="var(--sans)" font-size="11" font-weight="700" fill="#1aa6a0">6.2 GB</text>
+        <text x="728" y="220" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#8893a5">32 K</text>
+        <!-- delta annotation -->
+        <line x1="674" y1="118" x2="706" y2="86" stroke="#1aa6a0" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <text x="680" y="96" text-anchor="middle" font-family="var(--sans)" font-size="11" font-weight="700" fill="#1aa6a0">+1.7 GB</text>
+        <!-- verdict -->
+        <text x="683" y="242" text-anchor="middle" font-family="var(--sans)" font-size="12" font-weight="600" fill="#1aa6a0">memory cost is real</text>
+      </svg>
+    </div>
+    <figcaption>Context window grows (left) — generation speed is unaffected (middle) — VRAM reservation climbs +1.7 GB (right). The "tax" is entirely memory, not throughput.</figcaption>
+  </figure>
+
+  <div class="note">The KV-cache is not dynamically allocated as your conversation grows — it is sized at startup for the declared maximum. You pay for 32K tokens of cache from minute one, whether you use 200 tokens or 32,000.</div>
+
   <h2>The setup</h2>
   <p>One model (<b>Qwen2.5-Coder-7B-Instruct Q4_K_M</b>), one backend (CUDA), five context sizes: 2 K, 4 K, 8 K, 16 K, 32 K. For each we launch a fresh <code class="inl">llama-server</code>, let it fully load, then measure:</p>
   <ul style="color:var(--ink2);font-size:17px;padding-left:1.4em;margin:.6em 0">
     <li><b>Generation tok/s</b> — the shared 12-prompt suite, averaged.</li>
-    <li><b>VRAM used</b> — nvidia-smi delta between idle and loaded (the KV-cache reservation is the key contributor).</li>
+    <li><b>VRAM used</b> — nvidia-smi delta between idle and loaded (the KV-cache reservation is the dominant contributor; it scales with context).</li>
     <li><b>TTFT proxy</b> — <code class="inl">timings.prompt_ms</code> from a fixed ~200-token prompt (prompt-evaluation latency; rises with context because the attention mask grows).</li>
   </ul>
-  <p>The model doesn't know how long future inputs will be; it allocates the full KV-cache up front. Every extra kilotoken of declared context eats VRAM and slows the prefill — even if your actual prompt is three sentences.</p>
+  <p>The model doesn't know how long future inputs will be; it allocates the full KV-cache up front. Every extra kilotoken of declared context is VRAM you pay for immediately — even if your actual prompt is three sentences.</p>
 
   <h2>Results</h2>
+  <p>The headline across all five runs: <b>generation tok/s is flat at ~80</b> regardless of context size — ranging from 77.8 to 81.3 tok/s, well within measurement noise. VRAM, however, climbs steadily from 4,559 MiB at 2K to 6,269 MiB at 32K — a clean <b>+1,710 MiB (+1.7 GB)</b>. TTFT barely moves: 85.8 ms at 2K vs 88.8 ms at 32K (+3 ms). The 8K point showed a one-off spike to 92.5 ms, likely measurement noise on a single run. The chart tells the story plainly: the speed line is flat while the VRAM line climbs.</p>
   <div id="results"></div>
+
+  <h2>What we learned</h2>
+
+  <h3>Generation speed is bound by model weights, not unfilled context</h3>
+  <p>tok/s held at ~80 across every context size (2K: 80.2, 4K: 81.3, 8K: 77.8, 16K: 80.6, 32K: 80.3). Generation is memory-bandwidth-bound: the bottleneck is reading the weight matrices through the GPU on every forward pass. The unfilled KV-cache slots don't factor in until you actually fill them. Declaring 32K instead of 2K does not slow your output stream at all — the speed you get today is the speed you keep.</p>
+
+  <h3>VRAM cost is real, linear, and charged immediately</h3>
+  <p>VRAM went from 4,559 MiB at 2K to 6,269 MiB at 32K — a clean <b>+1,710 MiB</b> allocated the moment <code class="inl">llama-server</code> starts, before a single token is generated. The relationship is roughly linear with context: each doubling of context adds roughly 300–600 MiB for this model and quant. On a VRAM-tight card, that 1.7 GB could be the difference between fitting a second model, enabling a quantized KV-cache, or not.</p>
+
+  <h3>TTFT impact is modest — the real cost is memory, not latency</h3>
+  <p>Time-to-first-token increased by only +3 ms from 2K to 32K (85.8 → 88.8 ms). Even the noisy 8K spike (92.5 ms) is only +6.7 ms over the 2K baseline. For almost any interactive workload this is imperceptible. If you are chasing latency, the context-window setting is not the knob to reach for. The story here is VRAM, not milliseconds.</p>
+
+  <div class="note"><b>Practical takeaway:</b> Set <code class="inl">-c</code> to what you actually need, not "just in case." The performance tax for unused context is almost entirely VRAM — not generation speed. On a 16 GB card, going from 2K to 32K costs ~1.7 GB of headroom you might need for a bigger model, a second model, or KV-cache quantization. If you regularly paste large inputs, pay that cost deliberately — not by habit.</div>
 
   <h2>Community results</h2>
   <div id="community"></div>
@@ -66,7 +184,7 @@
   <p>Place <code class="inl">Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf</code> in your models dir, set <code class="inl">SPECBENCH_MODELS_DIR</code>, then:</p>
   <pre>python scripts/bench.py --backend cuda --gpu 0
 python scripts/aggregate.py &amp;&amp; python scripts/inject.py</pre>
-  <p>Full guide + how to submit your hardware: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+  <p>Full guide and how to submit your hardware: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
 
   <footer>
     <p><b>Methodology.</b> Fixed model (Qwen2.5-Coder-7B-Instruct Q4_K_M), greedy (temp 0), 256 max output tokens, shared 12-prompt suite for tok/s. VRAM = nvidia-smi used-memory delta on model load (run on an otherwise-idle GPU for a clean delta). TTFT proxy = <code class="inl">timings.prompt_ms</code> reported by llama.cpp for a fixed ~200-token prompt after warmup. Numbers vary with GPU, driver, and llama.cpp version; use the same binary version for apples-to-apples.</p>

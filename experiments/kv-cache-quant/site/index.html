@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KV-cache Quantization: Fit More Context in the Same VRAM — InventiveHQ</title>
-<meta name="description" content="f16 vs q8_0 vs q4_0 KV caches on the same model: how much VRAM each saves at a large context window, whether tok/s changes, and whether output quality holds. Reproducible.">
+<meta name="description" content="f16 vs q8_0 vs q4_0 KV caches on the same model at 8K context. q8_0 is a reasonable trade; q4_0 KV collapses output similarity to 8.3% — a quality cliff your logs won't warn you about. Reproducible on any NVIDIA GPU.">
 <style>
   :root{
     --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
@@ -13,18 +13,29 @@
     --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
     --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
-  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
   .wrap{max-width:880px;margin:0 auto;padding:0 22px}
-  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
-  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
-  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em;line-height:1.15}
+  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em;line-height:1.15}
+  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em;line-height:1.15}
   p{margin:.7em 0;color:var(--ink2);font-size:17px}
-  a{color:var(--green-d)}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(118,185,0,.35)}
+  a:hover{border-color:var(--green-d)}
   .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
   header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
   .lede{font-size:20px;color:var(--ink2);max-width:680px}
   .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .n .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
   .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .chartcard h3{margin:0 0 2px;font-size:17px}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
   table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
@@ -32,26 +43,158 @@
   th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
   td.num{font-family:var(--mono);text-align:right}
   .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
-  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
-  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
-  footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--ink)}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128;line-height:1.55}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px;color:var(--ink2)}
+  .note.warn{border-left-color:var(--red);background:#fff5f3}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figure{margin:30px 0}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
+  .good{color:var(--green-d)} .bad{color:var(--red)}
   .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header class="hero"><div class="wrap">
   <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #4</div>
-  <span class="kicker">● KV-cache Quantization: VRAM vs Quality</span>
-  <h1>KV-cache quantization: fit more context in the same VRAM</h1>
-  <p class="lede">f16 vs q8_0 vs q4_0 KV caches on the <b>same</b> model at a large context window. Quantizing the KV cache shrinks VRAM so you can fit more tokens in context — but does output quality hold?</p>
+  <span class="kicker">● InventiveHQ Lab · Hands-on</span>
+  <h1>KV-cache quantization: the q4_0 cliff your logs won't warn you about</h1>
+  <p class="lede">At 8K context, dropping the KV cache from f16 to <b>q8_0</b> saves 208&nbsp;MB and keeps output 81.6% similar to the reference — a reasonable trade. Dropping to <b>q4_0</b> saves 112&nbsp;MB more, and output similarity collapses to <b>8.3%</b>. The text is near-totally different. Generation speed didn't move. This experiment puts a number on that cliff.</p>
+  <div class="byline">
+    <span>By <b>InventiveHQ</b></span><span>·</span>
+    <span>2026</span><span>·</span>
+    <span>llama.cpp · RTX 5060 Ti · Qwen2.5-Coder 7B Q4_K_M · 8K ctx</span>
+  </div>
+  <div class="tldr">
+    <div class="stat"><div class="n bad">8.3<span class="u">%</span></div><div class="l">output similarity at q4_0 KV — near-total output change vs f16</div></div>
+    <div class="stat"><div class="n">320<span class="u"> MB</span></div><div class="l">max VRAM saved at 8K context — modest; scales sharply at 32K+</div></div>
+    <div class="stat"><div class="n good">81.6<span class="u">%</span></div><div class="l">output similarity at q8_0 KV — the safe lever to reach for</div></div>
+  </div>
 </div></header>
 
 <main class="wrap">
+
+  <h2>Why KV-cache quantization matters</h2>
+  <p>Every token your model processes leaves a trace in the <b>KV cache</b> — the key and value tensors from each attention layer, stored in VRAM so the model doesn't have to recompute them on the next token. At short contexts this is a rounding error. At long ones it dominates: a 7B model might use ~4&nbsp;GB for weights but another 2–4&nbsp;GB or more for KV entries at 32K+ context. The KV cache is what makes long-context inference expensive, and quantizing it is the most targeted lever you have — you're shrinking the cache without touching model weights at all.</p>
+  <p>In llama.cpp this is the <code class="inl">-ctk</code> / <code class="inl">-ctv</code> flag pair. Set them to <code class="inl">q8_0</code> or <code class="inl">q4_0</code> and you cut the per-token VRAM cost by 50% or 75% respectively. The promise: more context fits in the same VRAM budget. The question: what do you actually give up in output quality — and is there a safe stopping point?</p>
+  <div class="note">The savings compound with context length. At 8K context, KV is a modest fraction of total VRAM because model weights dominate. At 32K or 128K context, the KV cache can become the <em>majority</em> of your VRAM budget — that is where quantizing it earns back multiple gigabytes and makes the difference between fitting or not on a consumer card. The numbers in this experiment are at 8K; extrapolate the delta and the gap widens substantially.</div>
+
+  <h2>How KV-cache quantization works (60-second version)</h2>
+  <p>The KV cache is a table of floating-point values — one row per token, one column per attention head, repeated across all layers. Normally stored in f16 (16 bits per value). Quantizing it means storing each value in fewer bits: 8 for q8_0, 4 for q4_0. Fewer bits means a smaller table and less VRAM. The catch is rounding: every stored value loses precision. At 8 bits the rounding is minor. At 4 bits the rounding is aggressive enough that the model's attention lookups read meaningfully different numbers — and the outputs diverge accordingly.</p>
+
+  <figure>
+    <div class="panel">
+      <div class="head"><span class="t">KV-cache precision vs VRAM vs output fidelity — the three configs side by side</span></div>
+      <svg viewBox="0 0 820 300" width="100%" role="img" aria-label="Three KV-cache configurations: f16 full precision 4899 MB 100% fidelity, q8_0 8-bit 4691 MB 81.6% fidelity, q4_0 4-bit 4579 MB 8.3% fidelity — a quality cliff">
+        <!-- Panel backgrounds -->
+        <rect x="10" y="10" width="248" height="278" rx="12" fill="#f0f9e6" stroke="#76b900" stroke-width="1.5"/>
+        <rect x="288" y="10" width="248" height="278" rx="12" fill="#e6f6f6" stroke="#1aa6a0" stroke-width="1.5"/>
+        <rect x="566" y="10" width="248" height="278" rx="12" fill="#fdf0ee" stroke="#e3543b" stroke-width="1.5"/>
+        <!-- Panel headers -->
+        <rect x="10" y="10" width="248" height="44" rx="12" fill="#76b900"/>
+        <rect x="10" y="34" width="248" height="20" fill="#76b900"/>
+        <text x="134" y="35" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="var(--mono)">f16</text>
+        <text x="134" y="50" text-anchor="middle" font-size="10" fill="#d4edab" font-family="var(--sans)" font-weight="700">REFERENCE · FULL PRECISION</text>
+        <rect x="288" y="10" width="248" height="44" rx="12" fill="#1aa6a0"/>
+        <rect x="288" y="34" width="248" height="20" fill="#1aa6a0"/>
+        <text x="412" y="35" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="var(--mono)">q8_0</text>
+        <text x="412" y="50" text-anchor="middle" font-size="10" fill="#c0e9e7" font-family="var(--sans)" font-weight="700">8-BIT KV · SAFE TRADE</text>
+        <rect x="566" y="10" width="248" height="44" rx="12" fill="#e3543b"/>
+        <rect x="566" y="34" width="248" height="20" fill="#e3543b"/>
+        <text x="690" y="35" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="var(--mono)">q4_0</text>
+        <text x="690" y="50" text-anchor="middle" font-size="10" fill="#f7c5be" font-family="var(--sans)" font-weight="700">4-BIT KV · QUALITY CLIFF ⚠</text>
+        <!-- Precision bars label -->
+        <text x="10" y="77" font-size="10.5" font-weight="700" fill="#8893a5" font-family="var(--sans)">BITS STORED PER K/V ELEMENT</text>
+        <!-- f16 precision bar: 16 bits = full width (x=26..242, width=216) -->
+        <rect x="26" y="83" width="216" height="18" rx="5" fill="#d4edab"/>
+        <rect x="26" y="83" width="216" height="18" rx="5" fill="#76b900">
+          <animate attributeName="width" from="0" to="216" dur="0.6s" fill="freeze"/>
+        </rect>
+        <text x="134" y="96" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="var(--mono)">16 bits</text>
+        <!-- q8_0 precision bar: 8 bits = half width (x=304..520, fill=108) -->
+        <rect x="304" y="83" width="216" height="18" rx="5" fill="#c0e9e7"/>
+        <rect x="304" y="83" width="108" height="18" rx="5" fill="#1aa6a0">
+          <animate attributeName="width" from="0" to="108" dur="0.6s" fill="freeze"/>
+        </rect>
+        <text x="412" y="96" text-anchor="middle" font-size="11" font-weight="800" fill="#138f89" font-family="var(--mono)">8 bits</text>
+        <!-- q4_0 precision bar: 4 bits = quarter width (x=582..798, fill=54) -->
+        <rect x="582" y="83" width="216" height="18" rx="5" fill="#fbd8d3"/>
+        <rect x="582" y="83" width="54" height="18" rx="5" fill="#e3543b">
+          <animate attributeName="width" from="0" to="54" dur="0.6s" fill="freeze"/>
+        </rect>
+        <text x="690" y="96" text-anchor="middle" font-size="11" font-weight="800" fill="#c0392b" font-family="var(--mono)">4 bits</text>
+        <!-- VRAM section -->
+        <text x="10" y="122" font-size="10.5" font-weight="700" fill="#8893a5" font-family="var(--sans)">VRAM AT 8K CONTEXT</text>
+        <text x="134" y="146" text-anchor="middle" font-size="24" font-weight="800" fill="#13161b" font-family="var(--sans)">4,899 MB</text>
+        <text x="134" y="163" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">reference</text>
+        <text x="412" y="146" text-anchor="middle" font-size="24" font-weight="800" fill="#13161b" font-family="var(--sans)">4,691 MB</text>
+        <text x="412" y="163" text-anchor="middle" font-size="11" fill="#1aa6a0" font-family="var(--sans)" font-weight="700">−208 MB vs f16</text>
+        <text x="690" y="146" text-anchor="middle" font-size="24" font-weight="800" fill="#13161b" font-family="var(--sans)">4,579 MB</text>
+        <text x="690" y="163" text-anchor="middle" font-size="11" fill="#e3543b" font-family="var(--sans)" font-weight="700">−320 MB vs f16</text>
+        <!-- Output fidelity section -->
+        <text x="10" y="191" font-size="10.5" font-weight="700" fill="#8893a5" font-family="var(--sans)">OUTPUT FIDELITY VS f16</text>
+        <!-- f16 fidelity bar: 100% → 216px -->
+        <rect x="26" y="197" width="216" height="22" rx="6" fill="#eef1f6"/>
+        <rect x="26" y="197" width="216" height="22" rx="6" fill="#76b900">
+          <animate attributeName="width" from="0" to="216" dur="0.8s" fill="freeze"/>
+        </rect>
+        <text x="134" y="213" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" font-family="var(--sans)">100%</text>
+        <!-- q8_0 fidelity bar: 81.6% of 216 = 176px -->
+        <rect x="304" y="197" width="216" height="22" rx="6" fill="#eef1f6"/>
+        <rect x="304" y="197" width="176" height="22" rx="6" fill="#1aa6a0">
+          <animate attributeName="width" from="0" to="176" dur="0.8s" fill="freeze"/>
+        </rect>
+        <text x="412" y="213" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" font-family="var(--sans)">81.6%</text>
+        <!-- q4_0 fidelity bar: 8.3% of 216 = 18px — nearly empty -->
+        <rect x="582" y="197" width="216" height="22" rx="6" fill="#eef1f6"/>
+        <rect x="582" y="197" width="18" height="22" rx="6" fill="#e3543b">
+          <animate attributeName="width" from="0" to="18" dur="0.8s" fill="freeze"/>
+        </rect>
+        <text x="612" y="213" font-size="13" font-weight="800" fill="#e3543b" font-family="var(--sans)">8.3% ⚠</text>
+        <!-- Fidelity captions -->
+        <text x="134" y="236" text-anchor="middle" font-size="11" fill="#5c9000" font-family="var(--sans)" font-weight="700">identical output</text>
+        <text x="412" y="236" text-anchor="middle" font-size="11" fill="#138f89" font-family="var(--sans)" font-weight="700">mostly same, some drift</text>
+        <text x="690" y="236" text-anchor="middle" font-size="11" fill="#e3543b" font-family="var(--sans)" font-weight="700">near-totally different output</text>
+        <!-- Generation speed row -->
+        <text x="10" y="260" font-size="10.5" font-weight="700" fill="#8893a5" font-family="var(--sans)">GENERATION SPEED</text>
+        <text x="134" y="282" text-anchor="middle" font-size="15" fill="#13161b" font-family="var(--mono)" font-weight="800">81.8 tok/s</text>
+        <text x="412" y="282" text-anchor="middle" font-size="15" fill="#13161b" font-family="var(--mono)" font-weight="800">76.4 tok/s</text>
+        <text x="690" y="282" text-anchor="middle" font-size="15" fill="#13161b" font-family="var(--mono)" font-weight="800">80.3 tok/s</text>
+      </svg>
+    </div>
+    <figcaption>Qwen2.5-Coder-7B-Instruct (Q4_K_M), 8K context, RTX 5060 Ti. The "bits stored" bar is proportional to bit-depth (f16=full, q8_0=half, q4_0=quarter). The fidelity gauge shows mean difflib similarity of each config's greedy outputs vs f16 over a 12-prompt suite. The q4_0 bar is nearly empty — this is not quantization noise, it's a different model response.</figcaption>
+  </figure>
+
   <h2>The setup</h2>
   <p>One model (<code class="inl">Qwen2.5-Coder-7B-Instruct-Q4_K_M</code>), run at a large context (8192 tokens) with three KV-cache precisions: <b>f16</b> (full precision, baseline), <b>q8_0</b> (8-bit KV), and <b>q4_0</b> (4-bit KV). Per cache type we record <b>VRAM used</b> (nvidia-smi delta on load), <b>generation tok/s</b>, and <b>output similarity</b> — how close each config's greedy output stays to the f16 baseline over the shared 12-prompt suite (mean difflib ratio; 100% = no change).</p>
 
   <h2>Results</h2>
   <div id="results"></div>
+
+  <p>The charts tell a two-act story. Act one — VRAM and speed — looks almost boring: q8_0 saves 208&nbsp;MB (4%), q4_0 saves 320&nbsp;MB (6.5%), and generation speed barely moves (81.8 → 76.4 → 80.3 tok/s). Throughput monitoring alone would never flag a problem. Act two ends that complacency. The output similarity line drops from 100% (f16 reference) to 81.6% at q8_0 — recognizably similar text with some rephrasing and restructuring — and then to <b>8.3% at q4_0</b>. That is not quantization noise; that is a completely different response to the same prompt. Across a 12-prompt suite spanning code, math, and reasoning tasks, the q4_0 KV cache produced outputs that bore almost no textual resemblance to the f16 baseline. The speed was fine. The output was not.</p>
+
+  <h2>What we learned</h2>
+
+  <h3>q4_0 KV is a quality cliff, not a quality slope</h3>
+  <p>The drop from q8_0 (81.6% similar) to q4_0 (8.3% similar) is not a smooth gradient — it's a cliff. At 4-bit precision, the rounding in each K/V element is aggressive enough that attention scores diverge meaningfully from f16 on every layer. Small divergences compound across 32+ layers and hundreds of generated tokens until the output has taken a completely different trajectory. This is not a "slightly worse" mode; it is a mode where you get <em>different answers</em>. If your evaluation doesn't explicitly diff q4_0 output against f16, you will not know.</p>
+
+  <h3>The VRAM savings are modest at short context — and the calculus changes at long context</h3>
+  <p>At 8K context on a 7B model, the KV cache is a minority of total VRAM. The model weights (Q4_K_M, ~4.3&nbsp;GB) dominate; the KV entries are a small slice. That's why f16 uses 4,899&nbsp;MB and q4_0 uses 4,579&nbsp;MB — a saving of 320&nbsp;MB on a card with 16&nbsp;GB. At 32K context the math reverses: KV cache becomes the majority of your VRAM budget, and quantizing from f16 to q8_0 can free multiple gigabytes and make the difference between fitting and not fitting a long-context workload on a consumer card. The lesson is not that KV quantization is useless; it's that the payoff scales with context length. Run this experiment at 32K and the gap widens substantially.</p>
+
+  <h3>q8_0 is the lever worth reaching for</h3>
+  <p>With 81.6% output similarity and 208&nbsp;MB freed at 8K (scaling to much more at 32K+), q8_0 is a defensible production choice when you need to stretch your VRAM budget. The quality cost is real — difflib similarity is a blunt instrument and the actual task-level degradation will depend on your prompts and what you're measuring — but outputs remain coherent and recognizable. The right test is to run your actual task prompts through both f16 and q8_0 KV and measure the delta for things that matter to you, not just difflib ratio.</p>
+
+  <h3>Speed is not the diagnostic — output text is</h3>
+  <p>All three configs run within about 5&nbsp;tok/s of each other (81.8 / 76.4 / 80.3 tok/s). The model producing near-totally broken output (q4_0 at 8.3% similarity) runs at 80.3&nbsp;tok/s — nearly as fast as the perfect-quality f16 reference. Throughput monitoring is not enough. If you're serving LLM output in production with KV quantization enabled, you need periodic output comparisons to a reference, not just latency dashboards.</p>
+
+  <h2>Takeaway: reach for q8_0, avoid q4_0 unless you've tested it</h2>
+  <p>When you need to stretch context on a consumer GPU, <code class="inl">-ctk q8_0 -ctv q8_0</code> is the flag to reach for. It frees meaningful VRAM at long context, and while output quality degrades measurably, the outputs remain recognizable. At 128K context a q8_0 KV cache saves gigabytes that would otherwise be inaccessible on a 16&nbsp;GB card. Measure the quality delta for your workload, but the tradeoff is well-behaved.</p>
+  <p><code class="inl">-ctk q4_0 -ctv q4_0</code> is a different story. The 8.3% output similarity measured here is not a mild degradation — it's near-total divergence from the f16 reference. The additional VRAM saving over q8_0 is 112&nbsp;MB at 8K context: rarely worth sacrificing coherent output for. If you are using q4_0 KV today without having tested output quality against f16, this experiment is a strong reason to check.</p>
+  <div class="note warn">The key question: is 8.3% output similarity to f16 acceptable for your use case? For some approximate retrieval tasks, perhaps. For code generation, math, structured output, or any task where correctness matters, almost certainly not — and the failures will be silent.</div>
 
   <h2>Community results</h2>
   <div id="community"></div>

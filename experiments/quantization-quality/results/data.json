@@ -1,9 +1,82 @@
 {
   "experiment": "quantization-quality",
-  "has_data": false,
-  "model": null,
-  "backend": null,
-  "reference": null,
-  "quants": [],
+  "has_data": true,
+  "model": "Qwen2.5-Coder-7B-Instruct",
+  "backend": "cuda",
+  "reference": "Q8_0",
+  "quants": [
+    {
+      "label": "Q2_K",
+      "bits": 2.6,
+      "file_mb": 3016,
+      "vram_mb": 3205,
+      "tps": 91.18,
+      "math_pass": 2,
+      "math_total": 8,
+      "math_pct": 25.0,
+      "similarity": 21.5,
+      "is_ref": false
+    },
+    {
+      "label": "Q3_K_M",
+      "bits": 3.4,
+      "file_mb": 3808,
+      "vram_mb": 3907,
+      "tps": 73.03,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 40.9,
+      "is_ref": false
+    },
+    {
+      "label": "Q4_K_M",
+      "bits": 4.5,
+      "file_mb": 4683,
+      "vram_mb": 4673,
+      "tps": 79.01,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 56.6,
+      "is_ref": false
+    },
+    {
+      "label": "Q5_K_M",
+      "bits": 5.5,
+      "file_mb": 5445,
+      "vram_mb": 5333,
+      "tps": 69.8,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 68.9,
+      "is_ref": false
+    },
+    {
+      "label": "Q6_K",
+      "bits": 6.6,
+      "file_mb": 6254,
+      "vram_mb": 6037,
+      "tps": 59.11,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 79.7,
+      "is_ref": false
+    },
+    {
+      "label": "Q8_0",
+      "bits": 8.5,
+      "file_mb": 8099,
+      "vram_mb": 7669,
+      "tps": 49.56,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 100.0,
+      "is_ref": true
+    }
+  ],
   "community": []
 }

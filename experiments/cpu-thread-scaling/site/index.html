@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CPU Thread Scaling for LLM Inference — InventiveHQ</title>
-<meta name="description" content="More CPU threads made my LLM slower. We sweep thread counts from 1 to 16 and find the optimal setting — and show the hyperthreading penalty past physical cores.">
+<meta name="description" content="More CPU threads made my LLM slower. We sweep thread counts from 1 to 12 on an Intel i7-8700 (6 physical cores) and find the optimal setting — and show the hyperthreading penalty in real tok/s numbers.">
 <style>
   :root{
     --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
@@ -13,29 +13,52 @@
     --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
     --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
-  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
   .wrap{max-width:880px;margin:0 auto;padding:0 22px}
-  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
+  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:.2em 0 .35em}
   h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
   h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
   p{margin:.7em 0;color:var(--ink2);font-size:17px}
-  a{color:var(--green-d)}
-  .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(92,144,0,.25)}
+  a:hover{border-color:var(--green-d)}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
   header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
   .lede{font-size:20px;color:var(--ink2);max-width:680px}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .n.bad{color:var(--red)}
+  .stat .n .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
   .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  figure{margin:30px 0}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
   .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .chartcard h3{margin:0 0 4px}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px;color:var(--ink2)}
+  .note b{color:var(--ink)}
+  .good{color:var(--green-d)}
+  .bad{color:var(--red)}
   table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
   th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
   th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
   td.num{font-family:var(--mono);text-align:right}
   .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
-  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
-  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--ink)}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128;line-height:1.55}
+  pre .c{color:#7d8aa0}
   footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
   .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  @media(max-width:640px){.tldr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -43,32 +66,141 @@
   <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #9</div>
   <span class="kicker">● CPU Threads: More Is Not Always More</span>
   <h1>More CPU threads made my LLM slower</h1>
-  <p class="lede">Setting <code class="inl">-t 16</code> when your CPU has 8 physical cores can <b>halve</b> your tok/s. We sweep thread counts from 1 to 16 and find the knee — and show the hyperthreading penalty in real numbers.</p>
+  <p class="lede">Setting <code class="inl">--threads 12</code> (all logical cores) on a 6-physical-core CPU leaves you <b>slower than using 8</b>. We sweep thread counts 1→12 on an Intel i7-8700 and find exactly where the hyperthread penalty kicks in — in real tok/s numbers.</p>
+  <div class="byline">
+    <span>By <b>InventiveHQ</b></span><span>·</span>
+    <span>2026</span><span>·</span>
+    <span>llama.cpp · CPU-only · Qwen2.5-Coder-3B · i7-8700</span>
+  </div>
+  <div class="tldr">
+    <div class="stat"><div class="n">13.0<span class="u"> tok/s</span></div><div class="l">peak throughput — at 8 threads, not 12</div></div>
+    <div class="stat"><div class="n">8<span class="u">t</span></div><div class="l">optimal thread count on a 6-physical-core CPU</div></div>
+    <div class="stat"><div class="n bad">−2.4%</div><div class="l">throughput lost going from 8→12 threads (hyperthread tax)</div></div>
+  </div>
 </div></header>
 
 <main class="wrap">
+
+  <h2>Why thread count matters for CPU inference</h2>
+  <p>Unlike GPU inference — which is bound by fixed GPU parallelism — CPU LLM inference scales with thread count, up to a hard ceiling: your <b>physical core count</b>.</p>
+  <p>Each forward pass must stream the entire model weight matrix through memory to produce one token. There is almost no weight reuse between tokens. More threads help because more cores can cooperate on that memory transfer — but only while each thread is running on its own dedicated silicon. <b>Hyper-Threading</b> (Intel's SMT) lets each physical core present itself as two logical cores to the OS, but those two logical cores share the same execution units, the same L1/L2 cache, and — critically — <b>the same memory bandwidth</b>. Once every physical core already has a thread, adding more threads via hyperthreading does not give you more bandwidth. It splits the same bandwidth across competing threads while adding OS scheduling overhead.</p>
+  <div class="note"><b>The practical consequence:</b> tools and OS defaults that set <code class="inl">--threads</code> to your logical core count are wrong for LLM inference. Your physical core count (or slightly above) is almost always the sweet spot.</div>
+
+  <h2>How it works — physical cores vs hyperthreads</h2>
+  <p>The pattern below plays out on any CPU thread sweep: throughput climbs steeply while physical cores are being filled — real bandwidth scaling — then flattens or dips the moment you cross into hyperthread territory, where threads compete for resources they already share.</p>
+
+  <figure>
+    <div class="panel">
+      <div class="head"><span class="t">CPU thread scaling · three scenarios on a 6-core / 12-thread CPU</span></div>
+      <svg viewBox="0 0 820 178" width="100%" role="img"
+           aria-label="Three-panel diagram. Left: few threads — most cores idle, low throughput. Centre: 8 threads near the sweet spot — all physical cores busy, peak throughput. Right: 12 threads all logical cores double-booked via hyperthreading, slight throughput dip.">
+        <rect width="820" height="178" fill="#ffffff"/>
+        <!-- panel divider lines -->
+        <line x1="274" y1="28" x2="274" y2="162" stroke="#e7eaf0" stroke-width="1"/>
+        <line x1="548" y1="28" x2="548" y2="162" stroke="#e7eaf0" stroke-width="1"/>
+
+        <!-- ── PANEL 1: FEW THREADS (2t) ───────────────────────────────────── -->
+        <text x="137" y="21" text-anchor="middle" font-family="var(--sans)" font-size="11.5" font-weight="700" fill="#8893a5">few threads (2t)</text>
+        <!-- 6 core boxes, stride 35px (30px box + 5px gap), total 205px, start=34 -->
+        <rect x="34"  y="33" width="30" height="28" rx="5" fill="#dff3c4" stroke="#5c9000" stroke-width="2"/>
+        <rect x="69"  y="33" width="30" height="28" rx="5" fill="#dff3c4" stroke="#5c9000" stroke-width="2"/>
+        <rect x="104" y="33" width="30" height="28" rx="5" fill="#f1f4f9" stroke="#d5dbe5" stroke-width="1.5"/>
+        <rect x="139" y="33" width="30" height="28" rx="5" fill="#f1f4f9" stroke="#d5dbe5" stroke-width="1.5"/>
+        <rect x="174" y="33" width="30" height="28" rx="5" fill="#f1f4f9" stroke="#d5dbe5" stroke-width="1.5"/>
+        <rect x="209" y="33" width="30" height="28" rx="5" fill="#f1f4f9" stroke="#d5dbe5" stroke-width="1.5"/>
+        <!-- throughput readout -->
+        <text x="137" y="93"  text-anchor="middle" font-family="var(--sans)" font-size="26" font-weight="800" fill="#13161b">9.2</text>
+        <text x="137" y="111" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#8893a5">tok/s</text>
+        <text x="137" y="133" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#3a4250">2 cores active · 4 idle</text>
+        <text x="137" y="150" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="#8893a5">bandwidth going to waste</text>
+
+        <!-- ── PANEL 2: SWEET SPOT (8t) ───────────────────────────────────── -->
+        <text x="411" y="21" text-anchor="middle" font-family="var(--sans)" font-size="11.5" font-weight="700" fill="#5c9000">sweet spot (8t) ← peak</text>
+        <!-- 6 core boxes, start=309; last 2 have a light HT stripe (8 = 6 full + 2 HT) -->
+        <rect x="309" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="344" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="379" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="414" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <!-- cores 5 + 6 have a hyperthread sharing them -->
+        <rect x="449" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="449" y="33" width="30" height="11" rx="4" fill="#5c9000" opacity="0.20"/>
+        <rect x="484" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="484" y="33" width="30" height="11" rx="4" fill="#5c9000" opacity="0.20"/>
+        <!-- throughput readout -->
+        <text x="411" y="93"  text-anchor="middle" font-family="var(--sans)" font-size="26" font-weight="800" fill="#13161b">13.0</text>
+        <text x="411" y="111" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#8893a5">tok/s</text>
+        <text x="411" y="133" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#3a4250">6 cores active · 2 share a hyperthread</text>
+        <text x="411" y="150" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="#5c9000">bandwidth well utilised</text>
+
+        <!-- ── PANEL 3: TOO MANY (12t) ────────────────────────────────────── -->
+        <text x="684" y="21" text-anchor="middle" font-family="var(--sans)" font-size="11.5" font-weight="700" fill="#f0a23b">too many threads (12t)</text>
+        <!-- 6 core boxes, start=582; every core has a HT stripe -->
+        <rect x="582" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="582" y="33" width="30" height="11" rx="4" fill="#5c9000" opacity="0.28"/>
+        <rect x="617" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="617" y="33" width="30" height="11" rx="4" fill="#5c9000" opacity="0.28"/>
+        <rect x="652" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="652" y="33" width="30" height="11" rx="4" fill="#5c9000" opacity="0.28"/>
+        <rect x="687" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="687" y="33" width="30" height="11" rx="4" fill="#5c9000" opacity="0.28"/>
+        <rect x="722" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="722" y="33" width="30" height="11" rx="4" fill="#5c9000" opacity="0.28"/>
+        <rect x="757" y="33" width="30" height="28" rx="5" fill="#ceedb0" stroke="#5c9000" stroke-width="2"/>
+        <rect x="757" y="33" width="30" height="11" rx="4" fill="#5c9000" opacity="0.28"/>
+        <!-- throughput readout -->
+        <text x="684" y="93"  text-anchor="middle" font-family="var(--sans)" font-size="26" font-weight="800" fill="#13161b">12.7</text>
+        <text x="684" y="111" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#8893a5">tok/s</text>
+        <text x="684" y="133" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="#3a4250">6 cores · 2 threads each · no new bandwidth</text>
+        <text x="684" y="150" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="#f0a23b">scheduling overhead eats the marginal gain</text>
+      </svg>
+    </div>
+    <figcaption>Each green box is a physical CPU core. The darker stripe inside a box means a hyperthread is co-occupying that core's execution resources and memory bandwidth. At 8 threads (measured peak) most cores get one dedicated thread; only two are sharing. At 12 threads every core is double-booked and throughput drops back.</figcaption>
+  </figure>
+
   <h2>The setup</h2>
-  <p>One small model (<code class="inl">Qwen2.5-Coder-3B-Instruct-Q4_K_M</code>), CPU-only inference (<code class="inl">-ngl 0 --device none</code>), swept across thread counts: 1, 2, 4, 6, 8, 12, 16 (capped at the logical core count). Both compute (<code class="inl">-t</code>) and batch (<code class="inl">-tb</code>) threads are set to the same value at each step. Same 12-prompt suite at every count; we report mean generation tok/s.</p>
-  <p>The story: tok/s rises with threads as cores are added, plateaus around the physical-core count, then often <b>drops</b> as hyperthreads compete for the same memory bandwidth. The optimal setting is almost always at or just below the physical core count — the dotted amber line on the chart.</p>
+  <p>One small model, CPU-only inference, thread count swept across the full logical-core range. Both the compute threads (<code class="inl">-t</code>) and the batch threads (<code class="inl">-tb</code>) are set to the same value at each step. We report mean generation tok/s from the same 12-prompt suite used across all experiments in this series.</p>
+  <table>
+    <tr><th>Component</th><th>What we used</th></tr>
+    <tr><td>CPU</td><td>Intel Core i7-8700 — 6 physical cores, 12 logical (Hyper-Threading on), 3.20&nbsp;GHz</td></tr>
+    <tr><td>Model</td><td>Qwen2.5-Coder-3B-Instruct-Q4_K_M (~2.0&nbsp;GB)</td></tr>
+    <tr><td>Runtime</td><td>llama.cpp, CPU-only (<code class="inl">-ngl 0 --device none</code>)</td></tr>
+    <tr><td>Thread counts tested</td><td>1, 2, 4, 6, 8, 12</td></tr>
+    <tr><td>Prompt suite</td><td>12 prompts · code / math / reasoning / summarization / chat · 256-token output each</td></tr>
+  </table>
 
   <h2>Results</h2>
   <div id="results"></div>
+
+  <p>The curve tells the expected story — with one small twist. Throughput climbs sharply from 1 to 2 threads (<b>5.64 → 9.15 tok/s, +62%</b>), keeps rising through 4 threads (<b>11.76 tok/s</b>), then does something interesting: <b>6 threads — exactly the physical core count — is marginally slower than 4</b> (11.57 vs 11.76 tok/s). This is a common quirk when all six cores are simultaneously contending for the memory controller at the same pressure point. Then 8 threads climbs to the actual measured peak (<b>13.0 tok/s</b>): a modest number of hyperthreads can help hide per-core memory latency, so a small amount of HT is net-positive. Finally, 12 threads — all logical cores fully double-booked — <b>drops back to 12.69 tok/s</b>, a 2.4% regression from 8. The "use all cores" default is measurably wrong.</p>
+
+  <h2>What we learned</h2>
+
+  <h3>The physical core count is the inflection point, not the exact peak</h3>
+  <p>On the i7-8700, the measured optimum is <b>8 threads</b>, two above the 6 physical cores. A small amount of hyperthreading is net-positive because it lets cores hide memory-access latency during stalls. But there is a cliff: beyond 8, adding more threads into an already-saturated memory bus causes scheduling overhead to outweigh any latency-hiding benefit, and tok/s falls. The rule of thumb is not "stop at physical cores" but "start at physical cores and try +2 — stop well before logical cores."</p>
+
+  <h3>The biggest gains are entirely inside the physical-core zone</h3>
+  <p>Going from 1 thread to 6 (physical core count) takes throughput from 5.64 to 11.57 tok/s — a <b>2.05× gain</b>. The best you can extract beyond that, all the way to the measured peak at 8 threads, is another 12% to hit 13.0 tok/s. Everything interesting happens before the hyperthread boundary; everything after is marginal or negative.</p>
+
+  <h3>Using all logical cores is reliably sub-optimal for this workload</h3>
+  <p>Running at 12 threads (the OS default and many tool defaults) is slower than 8 threads on this hardware — consistently, not just on one prompt. The gap is small (2.4%) but it always goes the wrong direction. There is no scenario in which 12 threads beats 8 here. This matters most on machines where the logical core count is significantly higher than physical (e.g. 8P/16L, 12P/24L) — the penalty scales with how far "use everything" overshoots the sweet spot.</p>
+
+  <div class="note"><b>Practical takeaway:</b> set <code class="inl">--threads</code> to your physical core count as a starting baseline, then try +2 to see if a small HT bonus materialises on your CPU. Never use the logical core count as your default. On an i7-8700 (6 physical / 12 logical), the measured optimum is <b>8 threads</b>. On most modern desktop CPUs the answer will be physical cores ± 2.</div>
 
   <h2>Community results</h2>
   <div id="community"></div>
 
   <h2>Reproduce</h2>
-  <pre># drop Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf into your models dir first
+  <pre><span class="c"># drop Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf into your models dir first</span>
 export SPECBENCH_MODELS_DIR=/path/to/models
 export SPECBENCH_VULKAN_EXE=/path/to/llama-server
-export SPECBENCH_MODEL_BASE=Qwen2.5-Coder-3B-Instruct   # default; change to match your file
+export SPECBENCH_MODEL_BASE=Qwen2.5-Coder-3B-Instruct   <span class="c"># default; change to match your file</span>
 
 python scripts/bench.py
 python scripts/aggregate.py &amp;&amp; python scripts/inject.py</pre>
   <p>Full guide + how to submit your CPU: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
 
   <footer>
-    <p><b>Methodology.</b> CPU-only inference (llama.cpp, <code class="inl">-ngl 0 --device none</code>). Thread counts swept 1 → 16 capped at logical core count; <code class="inl">-t</code> and <code class="inl">-tb</code> set identically. Mean generation tok/s over the shared 12-prompt suite (256-token output, greedy, temp 0, seed 1234). Physical-core count queried from Win32_Processor / <code class="inl">/proc/cpuinfo</code> / <code class="inl">sysctl hw.physicalcpu</code>. Numbers vary by CPU architecture, BIOS power settings, OS scheduler, memory speed, and llama.cpp version.</p>
+    <p><b>Methodology.</b> CPU-only inference (llama.cpp, <code class="inl">-ngl 0 --device none</code>). Thread counts swept 1 → 12 capped at logical core count; <code class="inl">-t</code> and <code class="inl">-tb</code> set identically. Mean generation tok/s over the shared 12-prompt suite (256-token output, greedy, temp 0, seed 1234). Physical-core count queried from Win32_Processor / <code class="inl">/proc/cpuinfo</code> / <code class="inl">sysctl hw.physicalcpu</code>. Numbers vary by CPU architecture, BIOS power settings, OS scheduler, memory speed, and llama.cpp version.</p>
     <p class="tag">InventiveHQ · code MIT, data CC BY 4.0 · part of the local-llm-benchmarks series.</p>
   </footer>
 </main>

@@ -13,17 +13,32 @@
     --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
     --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
-  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
   .wrap{max-width:880px;margin:0 auto;padding:0 22px}
-  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
-  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
-  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  h1,h2,h3{line-height:1.15;letter-spacing:-.02em;font-weight:800}
+  h1{font-size:clamp(28px,4.6vw,46px);margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);margin:2.2em 0 .5em}
+  h3{font-size:17px;margin:1.4em 0 .3em}
   p{margin:.7em 0;color:var(--ink2);font-size:17px}
-  a{color:var(--green-d)}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(118,185,0,.35)}
+  a:hover{border-color:var(--green-d)}
   .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
   header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
   .lede{font-size:20px;color:var(--ink2);max-width:680px}
   .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
+  figure{margin:30px 0}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
   .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
@@ -33,39 +48,150 @@
   td.num{font-family:var(--mono);text-align:right}
   .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
   code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
-  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128;line-height:1.55}
+  pre .c{color:#7d8aa0}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px;color:var(--ink2)}
+  .good{color:var(--green-d)}
+  .bad{color:var(--red)}
   footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
   .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header class="hero"><div class="wrap">
-  <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #10</div>
-  <span class="kicker">● Speculative Decoding · Draft Size Sweep</span>
+  <div class="crumb"><a href="../speculative-decoding/">← Experiment #1: Speculative Decoding</a> · InventiveHQ · local-llm-benchmarks · experiment #10</div>
+  <span class="kicker">● InventiveHQ Lab · Sequel to Experiment #1</span>
   <h1>Bigger draft model = faster? Not always.</h1>
-  <p class="lede">A larger draft accepts <b>more tokens per round</b> — but costs <b>more per draft step</b>. We sweep 0.5B → 3B draft models against a fixed 14B target and measure actual speedup, VRAM cost, and acceptance rate.</p>
+  <p class="lede">A larger draft model accepts <b>more tokens per round</b> — but it also costs <b>more per draft step</b>. We sweep 0.5B → 3B draft models against a fixed Qwen2.5-Coder-14B target and find the sweet spot is smaller than you'd guess: the tiniest draft wins on net speedup despite the lowest acceptance rate.</p>
+  <div class="byline">
+    <span>By <b>InventiveHQ</b></span><span>·</span>
+    <span>June 2026</span><span>·</span>
+    <span>llama.cpp · CUDA · RTX 5060 Ti · Qwen2.5-Coder 14B</span>
+  </div>
+  <div class="tldr">
+    <div class="stat"><div class="n">1.37×</div><div class="l">peak speedup — the 0.5B draft wins</div></div>
+    <div class="stat"><div class="n">87%</div><div class="l">acceptance rate of the 3B draft — yet it finishes last</div></div>
+    <div class="stat"><div class="n">0.5B</div><div class="l">the sweet spot: smallest draft, highest net speedup</div></div>
+  </div>
 </div></header>
 
 <main class="wrap">
+
+  <h2>Why draft size matters</h2>
+  <p>In <a href="../speculative-decoding/">experiment #1</a> we established the core mechanism and its most important finding: speculative decoding speedup is gated by <b>acceptance rate</b>, but that rate has to be high enough to amortize the overhead of running the draft model in the first place. A fast target model can be slow to speculate on not because the draft guesses badly, but because the draft itself costs too much per step relative to what it saves. That is the overhead-vs-acceptance tradeoff, and it is the whole story.</p>
+  <p>Experiment #1 used a single fixed 0.5B draft against varying target sizes. This experiment flips that: the target is fixed (Qwen2.5-Coder-14B, baseline 42.45 tok/s on CUDA) and we vary only the draft model size — 0.5B, 1.5B, 3B. The question is whether a bigger, smarter draft can close the acceptance gap enough to overcome its higher per-step cost. The answer turns out to be no. Bigger drafts accept more tokens, but the cost rises faster than the acceptance benefit, and the net speedup falls with every size increase.</p>
+
+  <h2>The size–accuracy tradeoff, visualized</h2>
+  <p>Each draft size creates a different balance between how often the target agrees with the draft (acceptance) and how expensive each draft step is. Read the diagram left-to-right: acceptance climbs steeply as draft size grows, but so does per-step cost — and cost wins. The net speedup peaks at the smallest model.</p>
+  <figure>
+    <div class="panel">
+      <div class="head"><span class="t">Draft size vs acceptance rate vs net speedup — RTX 5060 Ti, Qwen2.5-Coder-14B target</span></div>
+      <svg viewBox="0 0 820 264" width="100%" role="img" aria-label="Diagram showing three draft model sizes (0.5B, 1.5B, 3B) with their acceptance rates (26%, 40%, 87%) and net speedups (1.37x, 1.32x, 1.25x). Acceptance climbs sharply with size but net speedup falls.">
+        <rect width="820" height="264" fill="#ffffff"/>
+        <!-- column headers -->
+        <text x="80" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="#8893a5" font-family="var(--sans)" letter-spacing=".07em">DRAFT SIZE</text>
+        <text x="323" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="#8893a5" font-family="var(--sans)" letter-spacing=".07em">ACCEPTANCE RATE</text>
+        <text x="581" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="#8893a5" font-family="var(--sans)" letter-spacing=".07em">DRAFT COST</text>
+        <text x="747" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="#8893a5" font-family="var(--sans)" letter-spacing=".07em">NET SPEEDUP</text>
+        <!-- col dividers -->
+        <line x1="160" y1="32" x2="160" y2="244" stroke="#e7eaf0"/>
+        <line x1="487" y1="32" x2="487" y2="244" stroke="#e7eaf0"/>
+        <line x1="675" y1="32" x2="675" y2="244" stroke="#e7eaf0"/>
+
+        <!-- ROW 1: 0.5B — WINNER -->
+        <rect x="14" y="46" width="132" height="38" rx="8" fill="#eaf5d8" stroke="#76b900" stroke-width="2"/>
+        <text x="80" y="72" text-anchor="middle" font-size="16" font-weight="800" fill="#2f4d00" font-family="var(--mono)">0.5B</text>
+        <!-- acceptance 26% — bar 300px total, 26%=78px -->
+        <rect x="168" y="50" width="300" height="30" rx="5" fill="#f1f4f9"/>
+        <rect x="168" y="50" width="78" height="30" rx="5" fill="#76b900"/>
+        <text x="254" y="70" text-anchor="start" font-size="13" font-weight="700" fill="#2f4d00" font-family="var(--sans)">26%</text>
+        <!-- cost: low — bar 162px total, low=42px -->
+        <rect x="495" y="50" width="162" height="30" rx="5" fill="#f1f4f9"/>
+        <rect x="495" y="50" width="42" height="30" rx="5" fill="#1aa6a0"/>
+        <text x="663" y="70" text-anchor="end" font-size="12" fill="#8893a5" font-family="var(--sans)">low</text>
+        <!-- speedup -->
+        <text x="747" y="68" text-anchor="middle" font-size="22" font-weight="800" fill="#5c9000" font-family="var(--sans)">1.37×</text>
+        <text x="747" y="84" text-anchor="middle" font-size="10" font-weight="700" fill="#76b900" font-family="var(--mono)" letter-spacing=".08em">★ WINNER</text>
+
+        <!-- ROW 2: 1.5B -->
+        <rect x="14" y="108" width="132" height="38" rx="8" fill="#f2f8e6" stroke="#9bbf57" stroke-width="1.5"/>
+        <text x="80" y="134" text-anchor="middle" font-size="16" font-weight="800" fill="#3a5500" font-family="var(--mono)">1.5B</text>
+        <!-- acceptance 40% = 120px -->
+        <rect x="168" y="112" width="300" height="30" rx="5" fill="#f1f4f9"/>
+        <rect x="168" y="112" width="120" height="30" rx="5" fill="#9bbf57"/>
+        <text x="296" y="132" text-anchor="start" font-size="13" font-weight="700" fill="#3a5500" font-family="var(--sans)">40%</text>
+        <!-- cost: medium = 92px -->
+        <rect x="495" y="112" width="162" height="30" rx="5" fill="#f1f4f9"/>
+        <rect x="495" y="112" width="92" height="30" rx="5" fill="#1aa6a0" opacity="0.58"/>
+        <text x="663" y="132" text-anchor="end" font-size="12" fill="#8893a5" font-family="var(--sans)">medium</text>
+        <!-- speedup -->
+        <text x="747" y="130" text-anchor="middle" font-size="22" font-weight="800" fill="#3a4250" font-family="var(--sans)">1.32×</text>
+
+        <!-- ROW 3: 3B -->
+        <rect x="14" y="170" width="132" height="38" rx="8" fill="#f6f8fb" stroke="#cfd6e0" stroke-width="1.5"/>
+        <text x="80" y="196" text-anchor="middle" font-size="16" font-weight="800" fill="#3a4250" font-family="var(--mono)">3B</text>
+        <!-- acceptance 87% = 261px -->
+        <rect x="168" y="174" width="300" height="30" rx="5" fill="#f1f4f9"/>
+        <rect x="168" y="174" width="261" height="30" rx="5" fill="#cfd6e0"/>
+        <text x="437" y="194" text-anchor="start" font-size="13" font-weight="700" fill="#3a4250" font-family="var(--sans)">87%</text>
+        <!-- cost: high = 155px -->
+        <rect x="495" y="174" width="162" height="30" rx="5" fill="#f1f4f9"/>
+        <rect x="495" y="174" width="155" height="30" rx="5" fill="#e3543b" opacity="0.35"/>
+        <text x="663" y="194" text-anchor="end" font-size="12" fill="#8893a5" font-family="var(--sans)">high</text>
+        <!-- speedup -->
+        <text x="747" y="192" text-anchor="middle" font-size="22" font-weight="800" fill="#8893a5" font-family="var(--sans)">1.25×</text>
+
+        <!-- footnote -->
+        <text x="410" y="254" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">Acceptance: fraction of draft tokens verified by target · Cost: relative per-step overhead (conceptual)</text>
+      </svg>
+    </div>
+    <figcaption>Acceptance rate and per-step cost both rise with draft model size — but cost grows faster. The 0.5B wins on net speedup despite having the lowest acceptance rate.</figcaption>
+  </figure>
+
   <h2>The setup</h2>
   <p>Speculative decoding uses a cheap "draft" model to propose tokens that the full target model verifies in one batched pass. In <a href="../speculative-decoding/">experiment #1</a> we showed that draft overhead has to be amortized: the speedup only shows up when the acceptance rate is high enough to justify the extra draft cost. This experiment extends that thesis by asking — <em>how much does draft model size matter?</em></p>
   <p>The target is fixed: <b>Qwen2.5-Coder-14B-Instruct-Q4_K_M</b>, CUDA, GPU 0. We first measure a plain baseline (no speculation), then sweep three draft sizes: 0.5B (Q8_0), 1.5B (Q4_K_M), and 3B (Q4_K_M). All drafts use <code class="inl">--spec-type draft-simple --spec-draft-n-max 5 -ngld 999</code> — 5 tokens drafted per round, draft fully on GPU. Speedup is draft tok/s divided by baseline tok/s; above 1.0× means faster than no speculation.</p>
   <p>The prediction: a bigger draft accepts more tokens per round (higher acceptance rate) but also burns more VRAM and adds more latency per draft step. The sweet spot likely sits somewhere in the middle.</p>
+  <table>
+    <tr><th>Component</th><th>What we used</th></tr>
+    <tr><td>GPU</td><td>NVIDIA RTX 5060 Ti — Blackwell (sm_120), 16 GB</td></tr>
+    <tr><td>Runtime</td><td>llama.cpp, CUDA backend</td></tr>
+    <tr><td>Target model</td><td>Qwen2.5-Coder-14B-Instruct-Q4_K_M (~9 GB)</td></tr>
+    <tr><td>Baseline throughput</td><td><b>42.45 tok/s</b> — target only, no draft</td></tr>
+    <tr><td>Draft models swept</td><td>Qwen2.5-Coder-0.5B Q8_0 (531 MB) · 1.5B Q4_K_M (986 MB) · 3B Q4_K_M (1930 MB)</td></tr>
+    <tr><td>Draft config</td><td><code class="inl">draft-simple</code>, 5 draft tokens per step, draft fully on GPU (<code class="inl">-ngld 999</code>)</td></tr>
+  </table>
 
   <h2>Results</h2>
   <div id="results"></div>
+  <p>Reading the numbers: the <b>0.5B draft</b> reaches <b>58.25 tok/s</b> (<span class="good">1.37×</span>), with 26% acceptance. The <b>1.5B</b> achieves 56.01 tok/s (1.32×) at 40% acceptance — noticeably more tokens accepted per round, but the larger model erodes the gain. The <b>3B</b> hits an impressive <b>87% acceptance rate</b>, guessing nearly every token correctly, yet produces only 52.91 tok/s (1.25×) — the closest of the three to the 42.45 tok/s baseline. The acceptance–overhead curve never crosses: as draft size grows, the per-step cost rises faster than the acceptance benefit, and each size increment trades net speedup for better guessing accuracy. The sweet spot is at the small end.</p>
+  <div class="note">The 3B draft agrees with the target <b>87% of the time</b> — nearly every token — and it is still the slowest of the three. That is the overhead story from <a href="../speculative-decoding/">experiment #1</a> made concrete: acceptance rate is necessary but not sufficient. The draft step itself must also be cheap, and a 3B model on the same 16 GB pool as a 14B target is not cheap enough to overcome its accuracy advantage.</div>
+
+  <h2>What we learned</h2>
+  <h3>Acceptance rises steeply with draft size</h3>
+  <p>Going from 0.5B to 3B — a 6× increase in model size — takes acceptance from 26% to 87%. A bigger same-family draft really does predict the target's tokens far more reliably; the capacity difference is real and large. The gain is also nonlinear: 0.5B → 1.5B adds 14 percentage points, while 1.5B → 3B adds another 47. Most of the acceptance benefit is concentrated at the top end of the size range.</p>
+  <h3>Net speedup falls with every size increase</h3>
+  <p>1.37× → 1.32× → 1.25×. Each draft size step costs roughly 0.05–0.07× of net speedup. The 3B's acceptance rate is remarkable — but the model is 3.6× larger than the 0.5B and shares the same GPU memory bandwidth. Those extra weights take time to move through the hardware on every draft cycle, and that overhead compounds regardless of how well the guess turns out.</p>
+  <h3>The 0.5B is the sweet spot on this setup</h3>
+  <p>Not because it is the best guesser — it is clearly not — but because it is cheap enough that even 26% acceptance translates to meaningful leverage on the 14B target. This is the <a href="../speculative-decoding/">overhead amortization</a> principle from experiment #1 in miniature: speculative decoding earns its keep when the target is slow and the draft is fast. A 14B baseline at 42.45 tok/s is slow enough that a 531 MB draft model is very cheap by comparison, and that ratio is what determines the winner.</p>
+  <h3>VRAM is not the binding constraint</h3>
+  <p>Even the 3B draft only adds ~1,475 MB over the 0.5B configuration (9,769 MB vs 11,244 MB total VRAM used). Fitting a larger draft model is not the problem. The problem is that even a modest VRAM footprint comes with compute cost per draft step, and that cost is what erodes the speedup — not memory capacity.</p>
+
+  <h2>The practical takeaway</h2>
+  <div class="note"><b>Pick the smallest draft model that keeps acceptance in a productive range.</b> For a same-family draft (Qwen-Coder 0.5B drafting for Qwen-Coder 14B), the 0.5B is already good enough — 26% acceptance on a 42.45 tok/s target translates to 1.37×. Scaling up to 1.5B or 3B costs you speedup without improving wall-clock time. If you change target families, task types, or hardware, re-measure: acceptance is both model-dependent and task-dependent, and the crossover point shifts. The principle from <a href="../speculative-decoding/">experiment #1</a> holds: the draft must be cheap <em>and</em> accurate — and cheap matters more than you would think.</div>
 
   <h2>Community results</h2>
   <div id="community"></div>
 
   <h2>Reproduce</h2>
   <p>Download the target and any draft GGUFs into your models dir (<code class="inl">SPECBENCH_MODELS_DIR</code>), then:</p>
-  <pre>python scripts/bench.py --gpu 0        # missing draft models are skipped
+  <pre>python scripts/bench.py --gpu 0        <span class="c"># missing draft models are skipped</span>
 python scripts/aggregate.py && python scripts/inject.py</pre>
-  <p>Full guide + how to submit your hardware: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+  <p>Full guide + how to submit your hardware: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>. This experiment is the sequel to <a href="../speculative-decoding/">experiment #1 (Speculative Decoding on Consumer GPUs)</a> — read that first for the full overhead-vs-acceptance framing and for how the same 14B target behaves with a fixed 0.5B draft across runtimes and GPU generations.</p>
 
   <footer>
-    <p><b>Methodology.</b> Target: Qwen2.5-Coder-14B-Instruct-Q4_K_M, CUDA backend, greedy (temp 0), 256 tokens, shared 12-prompt suite. Baseline: target only, no draft. Each draft config: <code class="inl">draft-simple</code>, 5 draft tokens per step, draft fully on GPU (<code class="inl">-ngld 999</code>). Speedup = draft tok/s / baseline tok/s. VRAM = nvidia-smi used-memory delta on model load (approximate; run on an otherwise-idle GPU). Acceptance rate parsed best-effort from server log. Sequel to <a href="../speculative-decoding/">experiment #1</a>. Numbers vary with model, GPU, and llama.cpp version.</p>
+    <p><b>Methodology.</b> Target: Qwen2.5-Coder-14B-Instruct-Q4_K_M, CUDA backend, greedy (temp 0), 256 tokens, shared 12-prompt suite. Baseline: target only, no draft (42.45 tok/s). Each draft config: <code class="inl">draft-simple</code>, 5 draft tokens per step, draft fully on GPU (<code class="inl">-ngld 999</code>). Speedup = draft tok/s / baseline tok/s. VRAM = nvidia-smi used-memory delta on model load (approximate; run on an otherwise-idle GPU). Acceptance rate parsed best-effort from server log. Sequel to <a href="../speculative-decoding/">experiment #1</a>. Numbers vary with model, GPU, and llama.cpp version.</p>
     <p class="tag">InventiveHQ · code <a href="../../../LICENSE">MIT</a>, data <a href="../../../DATA-LICENSE.md">CC BY 4.0</a> · part of the local-llm-benchmarks series.</p>
   </footer>
 </main>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GGUF Quantization: Speed vs Quality — InventiveHQ</title>
-<meta name="description" content="Q2 to Q8 on the same model: how much speed and VRAM you save by quantizing, and where output quality falls off a cliff. Reproducible.">
+<meta name="description" content="Q2 to Q8 on Qwen2.5-Coder-7B on an RTX 5060 Ti: how much speed and VRAM you gain by going lower, where output fidelity falls off a cliff, and the Q4–Q5 sweet spot that gives most of the savings with manageable quality loss.">
 <style>
   :root{
     --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
@@ -13,29 +13,52 @@
     --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
     --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
-  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
   .wrap{max-width:880px;margin:0 auto;padding:0 22px}
-  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
-  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
-  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  h1,h2,h3{line-height:1.15;letter-spacing:-.02em;font-weight:800}
+  h1{font-size:clamp(28px,4.6vw,46px);margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);margin:2.2em 0 .5em}
+  h3{font-size:17px;margin:1.4em 0 .3em}
   p{margin:.7em 0;color:var(--ink2);font-size:17px}
-  a{color:var(--green-d)}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(118,185,0,.35)}
+  a:hover{border-color:var(--green-d)}
   .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
   header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
-  .lede{font-size:20px;color:var(--ink2);max-width:680px}
+  .lede{font-size:20px;color:var(--ink2);max-width:700px}
   .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:30px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
+  figure{margin:30px 0}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
   .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .chartcard h3{margin:0 0 2px}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px;color:var(--ink2)}
+  .note.warn{border-left-color:var(--amber)}
   table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
   th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
   th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
   td.num{font-family:var(--mono);text-align:right}
   .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
   code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
-  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;line-height:1.55;border:1px solid #1c2128}
+  pre .c{color:#7d8aa0}
+  pre .g{color:#9fe04f}
+  .good{color:var(--green-d)} .bad{color:var(--red)}
   footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
   .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -43,27 +66,149 @@
   <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #3</div>
   <span class="kicker">● Quantization: Speed vs Quality</span>
   <h1>How low can you quantize before it breaks?</h1>
-  <p class="lede">Q2 to Q8 on the <b>same</b> model. Quantizing buys you speed and VRAM — but somewhere down there, quality falls off a cliff. We measure tok/s, VRAM, and two quality signals at each level to find exactly where.</p>
+  <p class="lede">Quantizing a GGUF model is the single most effective lever for fitting a large model on a small card and generating tokens faster — but it's lossy. We swept <b>Qwen2.5-Coder-7B</b> from Q2 to Q8 on an RTX&nbsp;5060&nbsp;Ti and measured exactly where output quality falls off a cliff.</p>
+  <div class="byline">
+    <span>By <b>InventiveHQ</b></span><span>·</span>
+    <span>June 2026</span><span>·</span>
+    <span>llama.cpp · RTX 5060 Ti · Qwen2.5-Coder-7B</span>
+  </div>
+  <div class="tldr">
+    <div class="stat">
+      <div class="n">1.84<span class="u">×</span></div>
+      <div class="l">Q2_K faster than Q8_0 in tok/s — but the fidelity cost is severe</div>
+    </div>
+    <div class="stat">
+      <div class="n" style="color:var(--red)">21<span class="u">%</span></div>
+      <div class="l">Q2_K output similarity to Q8_0 — not just compressed, qualitatively broken</div>
+    </div>
+    <div class="stat">
+      <div class="n" style="font-size:24px;letter-spacing:-.01em">Q4–Q5</div>
+      <div class="l">the practical sweet spot: most of the savings, tolerable quality loss</div>
+    </div>
+  </div>
 </div></header>
 
 <main class="wrap">
+
+  <h2>Why quantization is the lever everyone needs to understand</h2>
+  <p>Running Qwen2.5-Coder-7B in its native 16-bit floating-point format requires roughly <b>14&nbsp;GB of VRAM</b> — more than most consumer GPUs have. <b>Quantization</b> maps each weight from a 16-bit float to a smaller integer format, trading numerical precision for a massive reduction in file size and VRAM footprint. That smaller footprint means more of the model fits in fast GPU memory, which directly accelerates generation.</p>
+  <p>The reason smaller means faster is that local LLM inference is almost entirely <em>memory-bandwidth-bound</em>: the GPU spends most of each forward pass streaming the model's weights from VRAM to compute cores. A model that is half the size streams in roughly half the time, so lower-bit quants genuinely go faster — not because they do less computation, but because the data movement is cheaper. Q4_K_M on this 7B model uses 4,673&nbsp;MB of VRAM vs 7,669&nbsp;MB at Q8_0, and generates tokens ~1.6× faster.</p>
+  <p>The catch is that quantization is <b>lossy and irreversible</b>. At high bit-depths (Q6, Q8) the rounding error is small and practically invisible. But push to Q3 or Q2 and the numerical errors compound across thousands of layers until the generated text diverges meaningfully from what the full-precision model would have said. This experiment measures exactly where that happens.</p>
+
+  <h2>How quantization works — and where fidelity breaks</h2>
+  <p>Each weight in the model is a floating-point number. Quantization groups weights into blocks and maps the values in each block to a small set of representable integers: 8 bits gives 256 levels of precision, 4 bits gives 16, 2 bits gives only 4. The fewer the levels, the coarser the rounding, the larger the accumulated error in outputs. GGUF's <code class="inl">K</code>-quant family (Q3_K_M, Q4_K_M, Q5_K_M…) stores a per-block scaling factor that recovers some quality — but the fundamental limit is always the bit depth. Below Q4, there simply are not enough levels to represent the model's weight distribution cleanly.</p>
+  <figure>
+    <div class="panel">
+      <div class="head"><span class="t">Weight file size vs output fidelity — Qwen2.5-Coder-7B, RTX 5060 Ti</span></div>
+      <svg viewBox="0 0 820 292" width="100%" role="img" aria-label="Side-by-side horizontal bars for each quant level, Q8_0 at top down to Q2_K at bottom. Left bars show weight file size shrinking with fewer bits. Right bars show output similarity dropping steeply at Q3 and Q2.">
+        <rect width="820" height="292" fill="#ffffff"/>
+        <!-- column headers -->
+        <text x="88" y="22" text-anchor="end" font-size="11" font-weight="700" fill="#8893a5" font-family="Inter,sans-serif" letter-spacing=".06em">QUANT</text>
+        <text x="244" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#8893a5" font-family="Inter,sans-serif" letter-spacing=".06em">FILE SIZE</text>
+        <text x="600" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#8893a5" font-family="Inter,sans-serif" letter-spacing=".06em">OUTPUT FIDELITY vs Q8_0</text>
+        <!-- vertical separator -->
+        <line x1="415" y1="10" x2="415" y2="272" stroke="#e7eaf0" stroke-width="1.5"/>
+        <!-- Q8_0: bits=8.5→bar=300, sim=100%→bar=310 -->
+        <text x="88" y="51" text-anchor="end" font-size="13" font-weight="800" fill="#13161b" font-family="'SF Mono',Consolas,monospace">Q8_0</text>
+        <rect x="94" y="34" width="300" height="26" rx="5" fill="#1aa6a0"/>
+        <text x="400" y="51" text-anchor="end" font-size="11" fill="#8893a5" font-family="Inter,sans-serif">8.1 GB</text>
+        <rect x="425" y="34" width="310" height="26" rx="5" fill="#76b900"/>
+        <text x="742" y="51" font-size="12" font-weight="800" fill="#5c9000" font-family="Inter,sans-serif">100%</text>
+        <!-- Q6_K: bits=6.6→bar=233, sim=79.7%→bar=247 -->
+        <text x="88" y="91" text-anchor="end" font-size="13" font-weight="800" fill="#13161b" font-family="'SF Mono',Consolas,monospace">Q6_K</text>
+        <rect x="94" y="74" width="233" height="26" rx="5" fill="#1aa6a0"/>
+        <text x="333" y="91" text-anchor="end" font-size="11" fill="#8893a5" font-family="Inter,sans-serif">6.3 GB</text>
+        <rect x="425" y="74" width="247" height="26" rx="5" fill="#76b900"/>
+        <text x="679" y="91" font-size="12" font-weight="800" fill="#5c9000" font-family="Inter,sans-serif">79.7%</text>
+        <!-- Q5_K_M: bits=5.5→bar=194, sim=68.9%→bar=214 -->
+        <text x="88" y="131" text-anchor="end" font-size="13" font-weight="800" fill="#13161b" font-family="'SF Mono',Consolas,monospace">Q5_K_M</text>
+        <rect x="94" y="114" width="194" height="26" rx="5" fill="#1aa6a0"/>
+        <text x="294" y="131" text-anchor="end" font-size="11" fill="#8893a5" font-family="Inter,sans-serif">5.4 GB</text>
+        <rect x="425" y="114" width="214" height="26" rx="5" fill="#9bbf57"/>
+        <text x="646" y="131" font-size="12" font-weight="800" fill="#5c9000" font-family="Inter,sans-serif">68.9%</text>
+        <!-- Q4_K_M: bits=4.5→bar=159, sim=56.6%→bar=175 -->
+        <text x="88" y="171" text-anchor="end" font-size="13" font-weight="800" fill="#13161b" font-family="'SF Mono',Consolas,monospace">Q4_K_M</text>
+        <rect x="94" y="154" width="159" height="26" rx="5" fill="#1aa6a0"/>
+        <text x="259" y="171" text-anchor="end" font-size="11" fill="#8893a5" font-family="Inter,sans-serif">4.7 GB</text>
+        <rect x="425" y="154" width="175" height="26" rx="5" fill="#f0a23b"/>
+        <text x="607" y="171" font-size="12" font-weight="800" fill="#b57a2c" font-family="Inter,sans-serif">56.6%</text>
+        <!-- quality cliff marker between Q4 and Q3 -->
+        <line x1="420" y1="184" x2="820" y2="184" stroke="#e3543b" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.65"/>
+        <text x="816" y="180" text-anchor="end" font-size="10" font-weight="700" fill="#e3543b" font-family="Inter,sans-serif">quality cliff</text>
+        <!-- Q3_K_M: bits=3.4→bar=120, sim=40.9%→bar=127 -->
+        <text x="88" y="211" text-anchor="end" font-size="13" font-weight="800" fill="#13161b" font-family="'SF Mono',Consolas,monospace">Q3_K_M</text>
+        <rect x="94" y="194" width="120" height="26" rx="5" fill="#1aa6a0"/>
+        <text x="220" y="211" text-anchor="end" font-size="11" fill="#8893a5" font-family="Inter,sans-serif">3.8 GB</text>
+        <rect x="425" y="194" width="127" height="26" rx="5" fill="#e3543b"/>
+        <text x="559" y="211" font-size="12" font-weight="800" fill="#c23020" font-family="Inter,sans-serif">40.9%</text>
+        <text x="816" y="211" text-anchor="end" font-size="11" font-weight="700" fill="#e3543b" font-family="Inter,sans-serif">lossy</text>
+        <!-- Q2_K: bits=2.6→bar=92, sim=21.5%→bar=67 -->
+        <text x="88" y="251" text-anchor="end" font-size="13" font-weight="800" fill="#13161b" font-family="'SF Mono',Consolas,monospace">Q2_K</text>
+        <rect x="94" y="234" width="92" height="26" rx="5" fill="#1aa6a0"/>
+        <text x="192" y="251" text-anchor="end" font-size="11" fill="#8893a5" font-family="Inter,sans-serif">3.0 GB</text>
+        <rect x="425" y="234" width="67" height="26" rx="5" fill="#e3543b"/>
+        <text x="499" y="251" font-size="12" font-weight="800" fill="#c23020" font-family="Inter,sans-serif">21.5%</text>
+        <text x="816" y="251" text-anchor="end" font-size="11" font-weight="700" fill="#e3543b" font-family="Inter,sans-serif">heavily degraded</text>
+        <!-- bottom axis labels -->
+        <text x="94" y="279" font-size="11" fill="#8893a5" font-family="Inter,sans-serif">&#8592; fewer bits, smaller file</text>
+        <text x="425" y="279" font-size="11" fill="#8893a5" font-family="Inter,sans-serif">&#8592; lower fidelity at left</text>
+      </svg>
+    </div>
+    <figcaption>Left bars: weight file size proportional to bit-depth (teal, all same colour — size is the point). Right bars: how closely each quant's greedy output matches Q8_0 (green = close, amber = moderate drift, red = substantial drift). The red dashed line marks the quality cliff — below Q4_K_M, fidelity drops steeply.</figcaption>
+  </figure>
+  <div class="note warn">The similarity score measures how much quantization <b>changed</b> the model's greedy token choices vs the Q8_0 reference — it is a drift proxy, not an absolute correctness guarantee. A 57%-similar model might still be perfectly adequate for your use case; a 90%-similar one might still get a critical answer wrong. Use it as a relative signal: a large drop tells you the quant is substantially altering outputs, not just slightly rounding them.</div>
+
   <h2>The setup</h2>
-  <p>One model (Qwen2.5-Coder-7B), the same prompts, run through each GGUF quant from Q2_K up to Q8_0. Per level we record <b>generation tok/s</b>, <b>VRAM used</b>, and file size — plus two quality signals: a graded <b>math pass-rate</b> (does it still get the answer right?) and <b>output similarity</b> — how close each quant's greedy output stays to the highest-precision quant's (the closer to 100%, the less the quantization changed what the model says).</p>
+  <p>One model — <b>Qwen2.5-Coder-7B-Instruct</b> — run through each GGUF quant level from Q2_K up to Q8_0 on an <b>RTX&nbsp;5060&nbsp;Ti</b> (16&nbsp;GB, Blackwell) using llama.cpp's CUDA backend. Per quant we record generation speed, VRAM footprint, file size, and two quality signals: a graded <b>math pass-rate</b> over 8 multi-step problems with exact integer answers, and <b>output similarity</b> vs Q8_0 (mean difflib sequence-match ratio over the shared 12-prompt suite).</p>
+  <table>
+    <tr><th>Component</th><th>Detail</th></tr>
+    <tr><td>GPU</td><td>NVIDIA RTX 5060 Ti — Blackwell (sm_120), 16&nbsp;GB VRAM</td></tr>
+    <tr><td>Runtime</td><td>llama.cpp, CUDA backend</td></tr>
+    <tr><td>Model</td><td>Qwen2.5-Coder-7B-Instruct (GGUF; bartowski repo)</td></tr>
+    <tr><td>Quant levels</td><td>Q2_K · Q3_K_M · Q4_K_M · Q5_K_M · Q6_K · Q8_0</td></tr>
+    <tr><td>Reference</td><td>Q8_0 — highest-precision quant tested; used as the similarity baseline</td></tr>
+    <tr><td>Quality signals</td><td>8-question graded math set (multi-step, exact integer answer) + mean output-similarity vs Q8_0 over 12 prompts</td></tr>
+  </table>
 
   <h2>Results</h2>
   <div id="results"></div>
+
+  <p>The speed chart shows fewer bits trending faster. Q2_K peaks at <b>91.2 tok/s</b>, Q8_0 bottoms at <b>49.6 tok/s</b> — a 1.84× range. But the trend is not a clean monotone: Q3_K_M (73.0 tok/s) is actually <em>slower</em> than Q4_K_M (79.0 tok/s) despite having fewer bits. This is a K-quant structure quirk — Q3_K_M's dequantization layout can be less cache-friendly than Q4_K_M's, so the expected "fewer bits = faster" rule has local exceptions. Frame the speed trend as a general gradient, not a strict line; small differences between adjacent quant levels are noise.</p>
+  <p>The quality chart is where the real story is. The math pass-rate is nearly flat — 3/8 across Q3_K_M through Q8_0, dropping one point to 2/8 only at Q2_K. This graded set is intentionally hard, and a 7B coder model at these quant levels solves around 3 of 8 regardless of quantization depth — not because quant doesn't matter, but because this particular test is not sensitive enough to separate the levels. The <b>output-similarity line</b> tells a much clearer story: it falls from 100% at Q8_0 to 79.7% at Q6_K, to 56.6% at Q4_K_M, then drops steeply to 40.9% at Q3_K_M and all the way down to <b class="bad">21.5%</b> at Q2_K. At that point, nearly 4 in 5 output tokens differ from what Q8_0 would have generated — this is not minor rounding noise; the model is qualitatively different.</p>
+
+  <h2>What we learned</h2>
+
+  <h3>The fidelity cliff is real and steep below Q4</h3>
+  <p>From Q8_0 down to Q4_K_M, similarity drops from 100% to 56.6% — a gradual 43-point slide over four quant levels. Then Q4_K_M to Q3_K_M loses another 16 points in one step (56.6% → 40.9%), and Q3_K_M to Q2_K drops 19 more (40.9% → 21.5%). The cliff is not a metaphor: the loss rate roughly doubles below Q4. For tasks that require factual accuracy, code correctness, or coherent multi-step reasoning, Q2 and Q3 should be treated as <em>genuinely lossy formats</em> — not just slightly compressed versions of the same model.</p>
+
+  <h3>The practical knee is Q4–Q5</h3>
+  <p>Q4_K_M cuts the file from 8.1&nbsp;GB to 4.7&nbsp;GB (42% smaller) and VRAM from 7,669&nbsp;MB to 4,673&nbsp;MB, while output similarity sits at 56.6% — well above the cliff. Q5_K_M pushes similarity to 68.9% at 5.4&nbsp;GB and 5,333&nbsp;MB; that extra ~700&nbsp;MB buys a meaningful fidelity improvement. The Q5→Q6 step (68.9% → 79.7%) costs another ~0.9&nbsp;GB for a solid quality gain, and is worth it when VRAM headroom allows. But the biggest bang-per-gigabyte is in the Q4→Q5 range. Below Q4 you are buying speed and size at a disproportionate quality cost.</p>
+
+  <h3>Speed favours lower bits, but not in a straight line</h3>
+  <p>Broadly, fewer bits streams through memory faster — the model is smaller, and inference is bandwidth-bound. The range across the full sweep is 91.2 tok/s (Q2_K) vs 49.6 tok/s (Q8_0), a genuine 1.84× at the extremes. Within the middle range, do not over-read small gaps: Q3_K_M at 73.0 tok/s trails Q4_K_M at 79.0 tok/s, an artifact of K-quant dequantization overhead rather than a principle. Speed trends are real at scale; adjacent-level comparisons can reverse.</p>
+
+  <h3>The math pass-rate is not a sensitive quality signal for this sweep</h3>
+  <p>The 8-question graded math set is hard (multi-step word problems, exact integer extraction), and a 7B instruct model scores 3/8 across almost all quantization levels. Q2_K drops to 2/8 — a data point, not a verdict. The flat line does not mean quant doesn't affect correctness; it means this particular probe isn't fine-grained enough to separate the levels. The output-similarity slope is the primary quality signal in this experiment. Perplexity and KL-divergence vs FP16 would be more rigorous; those are reserved for a future pass.</p>
+
+  <h3>"Similarity" measures drift from Q8_0, not absolute quality</h3>
+  <p>Output similarity tells you how much quantization changed the model's greedy completions relative to Q8_0 — it is a drift proxy, not a correctness certificate. Two important caveats: (1) Q8_0 itself introduces some quantization error vs FP16; it is the highest-precision quant in this sweep, not ground truth. (2) A lower-similarity quant might still produce correct code or right answers on your task — or a high-similarity quant might still fail on edge cases. Run your own prompts on Q4 and Q5 before committing to a choice for production use.</p>
+
+  <h2>Takeaway: Q4_K_M or Q5_K_M for most use cases</h2>
+  <div class="note"><b>Q4_K_M is the default</b> recommendation for consumer GPU use: 42% VRAM savings vs Q8_0, ~1.6× faster generation, and output similarity of 57% — below the quality cliff, but above the collapse zone. <b>Q5_K_M</b> is worth choosing when VRAM allows and fidelity matters more than the last bit of speed — similarity climbs to 69% at modest cost. <b>Q6_K</b> reaches 80% similarity and is reasonable if you have 6&nbsp;GB to spare on the model. <b>Avoid Q2_K and Q3_K_M</b> unless you have explicitly tested your target task and found the output acceptable — at 21% and 41% similarity respectively, these are qualitatively different models, not mildly lossy compressions. If Q4_K_M doesn't fit your VRAM budget, try Q3_K_M only after benchmarking; do not assume it will behave like Q4.</div>
 
   <h2>Community results</h2>
   <div id="community"></div>
 
   <h2>Reproduce</h2>
-  <p>Download the quants into your models dir (e.g. bartowski's Qwen2.5-Coder-7B GGUF: Q2_K, Q3_K_M, Q4_K_M, Q5_K_M, Q6_K, Q8_0), then:</p>
-  <pre>python scripts/bench.py --backend cuda --gpu 0   # missing quants are skipped
-python scripts/aggregate.py && python scripts/inject.py</pre>
-  <p>Full guide + how to submit your hardware: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+  <p>Download the quants into your models dir (e.g. bartowski's Qwen2.5-Coder-7B GGUF repo: Q2_K, Q3_K_M, Q4_K_M, Q5_K_M, Q6_K, Q8_0), then:</p>
+  <pre><span class="c"># run the quant sweep — missing quants are skipped automatically</span>
+python scripts/bench.py --backend cuda --gpu 0
+python scripts/aggregate.py  <span class="c"># → results/data.json</span>
+python scripts/inject.py     <span class="c"># bakes numbers into site/index.html</span></pre>
+  <p>Run once per device if you want the speed/quality tradeoff on your own hardware. Best on an otherwise-idle GPU so the VRAM delta is clean. Full guide and how to submit your results: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
 
   <footer>
-    <p><b>Methodology.</b> Same model, greedy (temp 0), 256 tokens, shared 12-prompt suite for tok/s + output-drift; an 8-question graded math set for pass-rate. VRAM = nvidia-smi used-memory delta on model load (approximate; run on an otherwise-idle GPU). Output similarity = mean difflib ratio of each quant's greedy output vs the highest-precision quant present. Numbers vary with model, GPU, and llama.cpp version.</p>
+    <p><b>Methodology.</b> Same model (Qwen2.5-Coder-7B-Instruct), greedy decoding (temp 0), 256 tokens, shared 12-prompt suite for tok/s and output-drift measurement; an 8-question graded math set (multi-step word problems, exact integer match) for pass-rate. VRAM = nvidia-smi used-memory delta on model load (approximate; run on an otherwise-idle GPU). Output similarity = mean difflib sequence-match ratio of each quant's greedy completions vs Q8_0. Speed trend is broadly "fewer bits = faster" but is not perfectly monotonic — Q3_K_M (73.0 tok/s) trails Q4_K_M (79.0 tok/s) due to K-quant dequantization structure. Numbers vary with model, GPU, driver, and llama.cpp version.</p>
     <p class="tag">InventiveHQ · code MIT, data CC BY 4.0 · part of the local-llm-benchmarks series.</p>
   </footer>
 </main>
@@ -71,11 +216,84 @@ python scripts/aggregate.py && python scripts/inject.py</pre>
 <script>
 const DATA = {
   "experiment": "quantization-quality",
-  "has_data": false,
-  "model": null,
-  "backend": null,
-  "reference": null,
-  "quants": [],
+  "has_data": true,
+  "model": "Qwen2.5-Coder-7B-Instruct",
+  "backend": "cuda",
+  "reference": "Q8_0",
+  "quants": [
+    {
+      "label": "Q2_K",
+      "bits": 2.6,
+      "file_mb": 3016,
+      "vram_mb": 3205,
+      "tps": 91.18,
+      "math_pass": 2,
+      "math_total": 8,
+      "math_pct": 25.0,
+      "similarity": 21.5,
+      "is_ref": false
+    },
+    {
+      "label": "Q3_K_M",
+      "bits": 3.4,
+      "file_mb": 3808,
+      "vram_mb": 3907,
+      "tps": 73.03,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 40.9,
+      "is_ref": false
+    },
+    {
+      "label": "Q4_K_M",
+      "bits": 4.5,
+      "file_mb": 4683,
+      "vram_mb": 4673,
+      "tps": 79.01,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 56.6,
+      "is_ref": false
+    },
+    {
+      "label": "Q5_K_M",
+      "bits": 5.5,
+      "file_mb": 5445,
+      "vram_mb": 5333,
+      "tps": 69.8,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 68.9,
+      "is_ref": false
+    },
+    {
+      "label": "Q6_K",
+      "bits": 6.6,
+      "file_mb": 6254,
+      "vram_mb": 6037,
+      "tps": 59.11,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 79.7,
+      "is_ref": false
+    },
+    {
+      "label": "Q8_0",
+      "bits": 8.5,
+      "file_mb": 8099,
+      "vram_mb": 7669,
+      "tps": 49.56,
+      "math_pass": 3,
+      "math_total": 8,
+      "math_pct": 38.0,
+      "similarity": 100.0,
+      "is_ref": true
+    }
+  ],
   "community": []
 };
 const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));

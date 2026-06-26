@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smallest Model That Can Code — InventiveHQ</title>
-<meta name="description" content="How small a model can actually solve problems? Sweeping Qwen2.5-Coder from 0.5B to 14B: pass-rate, tok/s, and the knee where a model becomes reliable.">
+<meta name="description" content="How small a model can actually solve problems? Sweeping Qwen2.5-Coder from 0.5B to 14B on an RTX 5060 Ti: pass-rate collapses below 7B, speed falls steeply, and the quality knee is sharper than expected.">
 <style>
   :root{
     --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
@@ -13,59 +13,215 @@
     --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
     --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
-  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
   .wrap{max-width:880px;margin:0 auto;padding:0 22px}
-  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
-  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
-  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  h1,h2,h3{line-height:1.15;letter-spacing:-.02em;font-weight:800}
+  h1{font-size:clamp(28px,4.6vw,46px);margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);margin:2.2em 0 .5em}
+  h3{font-size:17px;margin:1.4em 0 .3em}
   p{margin:.7em 0;color:var(--ink2);font-size:17px}
-  a{color:var(--green-d)}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(118,185,0,.35)}
+  a:hover{border-color:var(--green-d)}
   .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
   header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
-  .lede{font-size:20px;color:var(--ink2);max-width:680px}
+  .lede{font-size:20px;color:var(--ink2);max-width:700px}
   .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:30px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .n .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
+  figure{margin:30px 0}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
   .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px}
   table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
   th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
   th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
   td.num{font-family:var(--mono);text-align:right}
   .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
-  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--ink)}
   pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
-  footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
+  pre .c{color:#7d8aa0}
+  pre .g{color:#9fe04f}
+  footer{margin:60px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
   .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header class="hero"><div class="wrap">
   <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #11</div>
-  <span class="kicker">● Model Size: Qwen2.5-Coder 0.5B → 14B</span>
+  <span class="kicker">● InventiveHQ Lab · Hands-on</span>
   <h1>How small a model can actually solve problems?</h1>
-  <p class="lede">Sweeping Qwen2.5-Coder from <b>0.5B to 14B</b>. Tiny models are fast and cheap — but somewhere down there, they stop getting things right. We measure tok/s and pass-rate at each size to find the knee: the smallest model that's actually reliable.</p>
+  <p class="lede">Tiny models are fast and cheap — but somewhere below 7 billion parameters, they stop being able to reason. We swept <b>Qwen2.5-Coder</b> from 0.5B to 14B on an RTX&nbsp;5060&nbsp;Ti, measured where pass-rate collapses, and found the quality knee is sharper than expected.</p>
+  <div class="byline">
+    <span>By <b>InventiveHQ</b></span><span>·</span>
+    <span>June 2026</span><span>·</span>
+    <span>Qwen2.5-Coder · RTX 5060 Ti · CUDA</span>
+  </div>
+  <div class="tldr">
+    <div class="stat">
+      <div class="n">&#x2264;1<span class="u">/10</span></div>
+      <div class="l">pass-rate at every model below 7B — cannot do multi-step reasoning</div>
+    </div>
+    <div class="stat">
+      <div class="n">381<span class="u"> tok/s</span></div>
+      <div class="l">peak speed at 0.5B — nearly 9&times; faster than 14B, but barely solves problems</div>
+    </div>
+    <div class="stat">
+      <div class="n">7B</div>
+      <div class="l">the knee: first model to pass 4 of 10 — the real floor for reasoning tasks</div>
+    </div>
+  </div>
 </div></header>
 
 <main class="wrap">
+
+  <h2>Why model size matters</h2>
+  <p>Everyone wants the smallest, fastest model that is still actually useful. Smaller means faster inference, lower VRAM requirements, cheaper hardware, and shorter waits. But capability does not scale linearly with size. There is a threshold: below it, a model is blazing fast but cannot reliably solve problems that require chaining steps; above it, it slows down but starts to get things right.</p>
+  <p>The tension is stark in this sweep. A 0.5B model runs at <b>381 tok/s</b> on an RTX&nbsp;5060&nbsp;Ti. The 14B model runs at <b>43 tok/s</b> — nearly nine times slower — and occupies 17&times; more disk space. Whether that cost buys anything worth paying for is the whole question.</p>
+
+  <h2>How it works — and how we measured</h2>
+  <p>We ran five <b>Qwen2.5-Coder-Instruct</b> checkpoints (0.5B through 14B) through the same harness on the same hardware, collecting two measurements per model:</p>
+  <ul>
+    <li><b>Generation speed (tok/s)</b> — from the shared 12-prompt suite: greedy decoding, 256 output tokens, server-reported <code class="inl">predicted_per_second</code>.</li>
+    <li><b>Pass-rate</b> — a graded set of 10 multi-step math and reasoning problems with known integer answers. Each response is graded by exact match on the last integer in the reply. No partial credit.</li>
+  </ul>
+  <div class="note"><b>What the pass-rate measures — and what it does not.</b> This is a reasoning proxy, not executed code. Running untrusted model-generated code safely inside a benchmark harness is non-trivial, so we approximate with a math and word-problem set. The 10 questions require chaining two to four arithmetic or logical steps — tracking diminishing inventory, computing compound rates, solving simultaneous equations. A model that can chain reasoning steps passes; one that cannot, fails. The sample is small (10 questions), so treat individual scores as signals rather than precise measurements. The 0–1/10 pattern across three consecutive model sizes is consistent enough to be a real signal, not noise.</div>
+
+  <figure>
+    <div class="panel">
+      <div class="head">
+        <span class="t">Pass-rate (green) vs speed (teal) across model sizes — RTX 5060 Ti · CUDA</span>
+      </div>
+      <svg viewBox="0 0 820 248" width="100%" role="img" aria-label="Dual-axis chart: green pass-rate line rises from near-zero at 0.5B through 3B, then jumps to 4 out of 10 at 7B and 6 out of 10 at 14B. Teal speed line falls steeply from 381 tok/s at 0.5B to 43 tok/s at 14B. A dashed vertical line marks the 7B quality knee.">
+        <!-- background -->
+        <rect width="820" height="248" fill="#fff"/>
+        <!-- horizontal grid lines; left axis 0-100%, right axis 0-400 tok/s share same gridlines -->
+        <line x1="64" y1="79"  x2="748" y2="79"  stroke="#eef1f6"/>
+        <line x1="64" y1="120" x2="748" y2="120" stroke="#eef1f6"/>
+        <line x1="64" y1="161" x2="748" y2="161" stroke="#eef1f6"/>
+        <line x1="64" y1="202" x2="748" y2="202" stroke="#e7eaf0"/>
+        <!-- left Y axis labels — pass-rate % -->
+        <text x="58" y="42"  text-anchor="end" font-size="11" fill="#8893a5" font-family="var(--sans)">100%</text>
+        <text x="58" y="83"  text-anchor="end" font-size="11" fill="#8893a5" font-family="var(--sans)">75%</text>
+        <text x="58" y="124" text-anchor="end" font-size="11" fill="#8893a5" font-family="var(--sans)">50%</text>
+        <text x="58" y="165" text-anchor="end" font-size="11" fill="#8893a5" font-family="var(--sans)">25%</text>
+        <text x="58" y="206" text-anchor="end" font-size="11" fill="#8893a5" font-family="var(--sans)">0%</text>
+        <!-- right Y axis labels — speed tok/s (400 = 100%, scales align on shared gridlines) -->
+        <text x="754" y="42"  text-anchor="start" font-size="11" fill="#8893a5" font-family="var(--sans)">400</text>
+        <text x="754" y="83"  text-anchor="start" font-size="11" fill="#8893a5" font-family="var(--sans)">300</text>
+        <text x="754" y="124" text-anchor="start" font-size="11" fill="#8893a5" font-family="var(--sans)">200</text>
+        <text x="754" y="165" text-anchor="start" font-size="11" fill="#8893a5" font-family="var(--sans)">100</text>
+        <text x="754" y="206" text-anchor="start" font-size="11" fill="#8893a5" font-family="var(--sans)">0</text>
+        <!-- rotated axis titles -->
+        <text x="14" y="120" transform="rotate(-90 14 120)" text-anchor="middle" font-size="11" font-weight="600" fill="#76b900" font-family="var(--sans)">Pass rate</text>
+        <text x="808" y="120" transform="rotate(90 808 120)" text-anchor="middle" font-size="11" font-weight="600" fill="#1aa6a0" font-family="var(--sans)">Speed (tok/s)</text>
+        <!-- knee: dashed vertical line at 7B (x=577) -->
+        <line x1="577" y1="38" x2="577" y2="202" stroke="#8893a5" stroke-dasharray="5 4" stroke-width="1.5"/>
+        <text x="571" y="30" text-anchor="end" font-size="11.5" font-weight="700" fill="#5c9000" font-family="var(--sans)">quality knee &#x2192;</text>
+        <!-- speed polyline (teal, falling left to right) -->
+        <polyline fill="none" stroke="#1aa6a0" stroke-width="2.5" stroke-linejoin="round"
+          points="64,46 235,107 406,138 577,166 748,184"/>
+        <!-- pass-rate polyline (green, rising left to right — dips at 1.5B then rises) -->
+        <polyline fill="none" stroke="#76b900" stroke-width="2.5" stroke-linejoin="round"
+          points="64,186 235,202 406,186 577,136 748,104"/>
+        <!-- speed data circles -->
+        <circle cx="64"  cy="46"  r="5" fill="#1aa6a0"/>
+        <circle cx="235" cy="107" r="5" fill="#1aa6a0"/>
+        <circle cx="406" cy="138" r="5" fill="#1aa6a0"/>
+        <circle cx="577" cy="166" r="5" fill="#1aa6a0"/>
+        <circle cx="748" cy="184" r="5" fill="#1aa6a0"/>
+        <!-- pass-rate data circles -->
+        <circle cx="64"  cy="186" r="5" fill="#76b900"/>
+        <circle cx="235" cy="202" r="5" fill="#76b900"/>
+        <circle cx="406" cy="186" r="5" fill="#76b900"/>
+        <circle cx="577" cy="136" r="5" fill="#76b900"/>
+        <circle cx="748" cy="104" r="5" fill="#76b900"/>
+        <!-- speed value labels (below circle at 0.5B to stay in-chart; above elsewhere) -->
+        <text x="64"  y="60"  text-anchor="middle" font-size="11" font-weight="700" fill="#1aa6a0" font-family="var(--sans)">381</text>
+        <text x="235" y="99"  text-anchor="middle" font-size="11" font-weight="700" fill="#1aa6a0" font-family="var(--sans)">232</text>
+        <text x="406" y="130" text-anchor="middle" font-size="11" font-weight="700" fill="#1aa6a0" font-family="var(--sans)">157</text>
+        <text x="563" y="158" text-anchor="middle" font-size="11" font-weight="700" fill="#1aa6a0" font-family="var(--sans)">87</text>
+        <text x="748" y="176" text-anchor="middle" font-size="11" font-weight="700" fill="#1aa6a0" font-family="var(--sans)">43</text>
+        <!-- pass-rate value labels (above each circle) -->
+        <text x="64"  y="178" text-anchor="middle" font-size="11" font-weight="700" fill="#5c9000" font-family="var(--sans)">1/10</text>
+        <text x="235" y="193" text-anchor="middle" font-size="11" font-weight="700" fill="#5c9000" font-family="var(--sans)">0/10</text>
+        <text x="406" y="178" text-anchor="middle" font-size="11" font-weight="700" fill="#5c9000" font-family="var(--sans)">1/10</text>
+        <text x="591" y="128" text-anchor="middle" font-size="11" font-weight="700" fill="#5c9000" font-family="var(--sans)">4/10</text>
+        <text x="748" y="96"  text-anchor="middle" font-size="11" font-weight="700" fill="#5c9000" font-family="var(--sans)">6/10</text>
+        <!-- X axis model size labels -->
+        <text x="64"  y="220" text-anchor="middle" font-size="12.5" font-weight="700" fill="#3a4250" font-family="var(--sans)">0.5B</text>
+        <text x="235" y="220" text-anchor="middle" font-size="12.5" font-weight="700" fill="#3a4250" font-family="var(--sans)">1.5B</text>
+        <text x="406" y="220" text-anchor="middle" font-size="12.5" font-weight="700" fill="#3a4250" font-family="var(--sans)">3B</text>
+        <text x="577" y="220" text-anchor="middle" font-size="13"   font-weight="800" fill="#13161b" font-family="var(--sans)">7B</text>
+        <text x="748" y="220" text-anchor="middle" font-size="12.5" font-weight="700" fill="#3a4250" font-family="var(--sans)">14B</text>
+        <!-- X axis subtitle -->
+        <text x="406" y="240" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">model size · Qwen2.5-Coder-Instruct family · RTX 5060 Ti · CUDA</text>
+      </svg>
+    </div>
+    <figcaption><b>Green line:</b> pass-rate on the 10-question graded reasoning set (left axis, %). <b>Teal line:</b> generation speed in tok/s (right axis, scale 0–400). The <b>7B quality knee</b> (dashed) is where pass-rate first reaches 4/10 — everything below is 0–1/10 regardless of speed.</figcaption>
+  </figure>
+
   <h2>The setup</h2>
-  <p>Five Qwen2.5-Coder-Instruct models ranging from 0.5B to 14B parameters, on the same hardware with the same prompts. Per model we record <b>generation tok/s</b> (shared 12-prompt suite), <b>VRAM used</b>, file size — plus a <b>correctness pass-rate</b>: a graded 10-question math/reasoning set with known integer answers. The sweet spot is where pass-rate climbs and tok/s is still acceptable.</p>
-  <p><b>A note on "code correctness":</b> executing untrusted model-generated code is unsafe in a benchmark harness, so correctness here is approximated by a graded math and reasoning set (exact-answer matching). A real code-execution sandbox is a future addition.</p>
+  <table>
+    <tr><th>Component</th><th>What we used</th></tr>
+    <tr><td>GPU</td><td>NVIDIA RTX 5060 Ti (Blackwell, 16 GB, 2025)</td></tr>
+    <tr><td>Runtime</td><td>llama.cpp (CUDA build)</td></tr>
+    <tr><td>Models</td><td>Qwen2.5-Coder-Instruct: 0.5B (Q8_0), 1.5B / 3B (Q4_K_M), 7B (Q4_K_S), 14B (Q4_K_M)</td></tr>
+    <tr><td>Speed test</td><td>Shared 12-prompt suite, greedy (temp 0), 256 tokens — server <code class="inl">predicted_per_second</code></td></tr>
+    <tr><td>Graded set</td><td>10 multi-step math/reasoning problems, exact integer match on the last number in the reply</td></tr>
+  </table>
 
   <h2>Results</h2>
   <div id="results"></div>
+
+  <p>The numbers tell a sharp story. At <b>0.5B</b>, generation flies at 381&nbsp;tok/s — but the model passes just <b>1 of 10</b> reasoning problems, most likely a lucky guess on a 10-question set. The <b>1.5B</b> model is 3&times; larger and scores <b>0 of 10</b>. The <b>3B</b> model runs at 157&nbsp;tok/s — still four times the speed of the 14B — and also manages just <b>1 of 10</b>. Then something changes at <b>7B: 4 of 10</b> correct, the first size where the model reliably follows multi-step chains. The <b>14B</b> reaches <b>6 of 10</b> at 43&nbsp;tok/s, occupying just under 9&nbsp;GB of VRAM.</p>
+  <p>The cost of climbing the pass-rate curve is steep. Speed falls from 381&nbsp;tok/s to 43&nbsp;tok/s — an 8.9&times; penalty. File size grows from 531&nbsp;MB to 8,988&nbsp;MB — 17&times; larger. The jump from 7B to 14B alone costs 2&times; in speed and doubles the VRAM footprint (4,457&nbsp;MB to 9,179&nbsp;MB).</p>
+  <div class="note"><b>On the 1.5B dip to 0/10.</b> It looks worse than 0.5B but with only 10 questions the signal is noisy — the 0.5B's single correct answer may itself be lucky. The consistent signal is that all three models below 7B cluster at 0–1/10 regardless of ordering. None can chain steps reliably.</div>
+
+  <h2>What we learned</h2>
+
+  <h3>Models at or below 3B cannot do multi-step reasoning</h3>
+  <p>Every model under 7B scored 0 or 1 out of 10. The graded set is not exotic — questions like "a store sold 3/5 of 120 apples in the morning and 25 more in the afternoon; how many remain?" require tracking two steps. Sub-7B models fail on these consistently, not occasionally. Speed does not compensate: the 0.5B runs at 381&nbsp;tok/s and still cannot get past 1/10. Fast wrong answers are still wrong.</p>
+
+  <h3>The knee is at 7B — and it is a cliff, not a slope</h3>
+  <p>The jump from 3B (1/10) to 7B (4/10) is the largest qualitative change in the sweep. At 7B, the model tracks intermediate state through a chain of reasoning steps — something the smaller models fail to do consistently. This is not "a little better"; it is the difference between a model that basically cannot reason and one that actually solves problems. If you need multi-step reasoning at all, 7B is the floor, not an option among equals.</p>
+
+  <h3>Even 14B isn't perfect — and this is a small proxy</h3>
+  <p>The 14B model scores 6 of 10 — the best result, but it still fails on 4 questions. Some failures may be genuinely hard problems; some may be prompt sensitivity on a small set. The 10-question graded set is a signal, not a full benchmark. A real code-execution sandbox with a larger, diverse suite would give a more complete picture. That said, this experiment answers the core question cleanly: models below 7B cannot reliably chain reasoning steps, and the proxy is consistent enough to trust that finding.</p>
+
+  <h3>Speed and size costs are steep and non-linear</h3>
+  <p>From 0.5B to 14B, speed falls 8.9&times; and file size grows 17&times;. The non-linearity matters: the 3B model is 4&times; the file size of 0.5B but no better on pass-rate. The 14B is 2&times; the file and VRAM of the 7B for a 50% improvement in pass-rate (4/10 to 6/10). There is no cheap step between 3B and 7B — you have to commit to the full size jump to gain anything.</p>
+
+  <h2>The practical takeaway</h2>
+  <p>For tasks requiring multi-step reasoning — math, logic, planning, code with non-trivial control flow — <b>do not rely on anything below 7B</b>. The speed advantage of smaller models is real, but you are trading it for a model that cannot chain steps reliably. The 7B is the minimum viable floor: it is genuinely slower (87&nbsp;tok/s vs 381), but it actually solves problems. The 14B buys additional reliability (6/10 vs 4/10) at another 2&times; speed penalty; whether that trade-off is worth it depends on your latency tolerance and VRAM budget.</p>
+  <div class="note">Sub-3B models are not useless — they are fast and capable for single-step tasks: autocomplete, short lookups, simple code completion, summarization where precision matters less. Just do not ask them to reason through a problem that requires more than one step.</div>
 
   <h2>Community results</h2>
   <div id="community"></div>
 
   <h2>Reproduce</h2>
   <p>Download the Qwen2.5-Coder-Instruct GGUF files into your models dir (<code class="inl">SPECBENCH_MODELS_DIR</code>), then:</p>
-  <pre>python scripts/bench.py --backend cuda --gpu 0   # missing models are skipped
-python scripts/aggregate.py && python scripts/inject.py</pre>
-  <p>Full guide + how to submit your hardware: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+  <pre><span class="c"># run the model-size sweep — missing models are skipped automatically</span>
+python scripts/bench.py --backend cuda --gpu 0
+python scripts/aggregate.py  <span class="c"># writes results/data.json</span>
+python scripts/inject.py     <span class="c"># bakes data into site/index.html</span></pre>
+  <p>Full guide and how to submit your hardware results: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
 
   <footer>
-    <p><b>Methodology.</b> Greedy (temp 0), 256 tokens, shared 12-prompt suite for tok/s; a 10-question graded math/reasoning set for pass-rate. VRAM = nvidia-smi used-memory delta on model load (approximate; run on an otherwise-idle GPU). Numbers vary with GPU, llama.cpp version, and quantization.</p>
-    <p class="tag">InventiveHQ · code MIT, data CC BY 4.0 · part of the local-llm-benchmarks series.</p>
+    <p><b>Methodology.</b> Greedy decoding (temp 0), 256 generated tokens, shared 12-prompt suite for tok/s; a 10-question graded math and reasoning set for pass-rate. VRAM is nvidia-smi used-memory delta on model load (approximate; run on an otherwise-idle GPU). The graded set uses exact match on the last integer in the model reply — no partial credit, no code execution. This is a multi-step reasoning proxy; a code-execution sandbox is a planned future addition. Numbers vary with GPU, llama.cpp version, and quantization.</p>
+    <p class="tag">InventiveHQ Lab · measured data, hand-authored SVG visuals, no stock images · code MIT, data CC BY 4.0 · part of the local-llm-benchmarks series</p>
   </footer>
 </main>
 

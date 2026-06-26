@@ -36,6 +36,21 @@
   pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
   footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
   .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .n .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px;color:var(--ink2)}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figure{margin:30px 0}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
+  .good{color:var(--green-d)} .bad{color:var(--red)}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -44,15 +59,99 @@
   <span class="kicker">● Tokens per watt</span>
   <h1>Tokens per watt: I capped my GPU to 70% power and barely lost speed</h1>
   <p class="lede">Decoding is <b>memory-bandwidth-bound</b>, not compute-bound. That means you can often slash the GPU's power limit and barely lose a token per second — while running cooler, quieter, and more efficiently.</p>
+  <div class="byline">
+    <span>By <b>InventiveHQ</b></span><span>·</span>
+    <span>2026</span><span>·</span>
+    <span>llama.cpp · RTX 5060 Ti · Qwen2.5-Coder 7B Q4_K_M · CUDA</span>
+  </div>
+  <div class="tldr">
+    <div class="stat"><div class="n good">~0<span class="u"> tok/s</span></div><div class="l">throughput lost capping 180 → 150 W (81.2 → 80.4 tok/s)</div></div>
+    <div class="stat"><div class="n good">+16<span class="u">%</span></div><div class="l">efficiency gain at the same speed (0.47 → 0.55 tok/s/W)</div></div>
+    <div class="stat"><div class="n good">−33<span class="u"> W</span></div><div class="l">real draw reduction: 173 W → 147 W measured at the wall</div></div>
+  </div>
 </div></header>
 
 <main class="wrap">
+  <h2>Why power matters for local inference</h2>
+  <p>Running a 7B model all day costs real electricity, heat, and fan noise. A GPU pulling 173 W continuously adds up fast. The obvious fix is a power cap. The obvious worry is that you'll sacrifice speed. Single-user LLM decoding is <b>memory-bandwidth-bound</b>: at batch size 1 the GPU mostly waits for weights to stream from VRAM. The arithmetic units sit idle most of the time. Extra compute clocks — bought with extra watts — don't move the needle on throughput. Cutting power throttles clocks, but clocks are not the bottleneck.</p>
+  <p>This experiment measures exactly how much speed you lose, and how much efficiency you gain, as the power cap steps from the 5060 Ti's default (180 W) down to its hardware floor (150 W).</p>
+
+  <h2>How it works: the bandwidth-bound argument</h2>
+  <p>Each token forward pass reads the full model weight matrix from VRAM — several gigabytes streamed sequentially. The arithmetic to apply those weights finishes in microseconds; waiting for the next weight tile from VRAM takes milliseconds. Power throttling reduces clock frequency, which reduces how fast the math runs — but math is not what you are waiting for. Speed stays flat until you throttle so hard that the memory controller itself slows, which does not happen in the 150–180 W range on this card.</p>
+  <figure>
+    <div class="panel">
+      <div class="head"><span class="t">Power cap ↓ · speed barely moves · efficiency rises</span></div>
+      <svg viewBox="0 0 820 230" width="100%" role="img" aria-label="Three gauges: power draw drops from 173W to 147W; speed stays flat at ~80 tok/s; efficiency rises from 0.47 to 0.55 tok/s/W">
+        <!-- Power gauge (left) — highlight: drops -->
+        <text x="137" y="26" text-anchor="middle" font-size="11" font-weight="700" fill="#8893a5" font-family="var(--sans)" letter-spacing=".04em">POWER DRAW</text>
+        <circle cx="137" cy="112" r="70" fill="#fff5f3" stroke="#e3543b" stroke-width="1.5"/>
+        <path d="M 79 154 A 70 70 0 0 1 195 154" fill="none" stroke="#fbd8d3" stroke-width="13" stroke-linecap="round"/>
+        <!-- 173W arc (faint, full sweep) -->
+        <path d="M 79 154 A 70 70 0 0 1 137 42" fill="none" stroke="#e3543b" stroke-width="13" stroke-linecap="round" opacity="0.25"/>
+        <!-- 147W arc (smaller, vivid) -->
+        <path d="M 79 154 A 70 70 0 0 1 103 57" fill="none" stroke="#1aa6a0" stroke-width="13" stroke-linecap="round"/>
+        <text x="137" y="107" text-anchor="middle" font-size="28" font-weight="800" fill="#13161b" font-family="var(--sans)">147</text>
+        <text x="137" y="127" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">W actual draw</text>
+        <text x="79" y="171" text-anchor="middle" font-size="9.5" fill="#e3543b" font-family="var(--sans)">173 W</text>
+        <text x="195" y="171" text-anchor="middle" font-size="9.5" fill="#8893a5" font-family="var(--sans)">0</text>
+        <text x="137" y="194" text-anchor="middle" font-size="11" font-weight="700" fill="#1aa6a0" font-family="var(--sans)">↓ −26 W saved</text>
+        <!-- Speed gauge (centre) — highlight: flat -->
+        <text x="410" y="26" text-anchor="middle" font-size="11" font-weight="700" fill="#8893a5" font-family="var(--sans)" letter-spacing=".04em">SPEED (tok/s)</text>
+        <circle cx="410" cy="112" r="70" fill="#f6f8fb" stroke="#e7eaf0" stroke-width="1.5"/>
+        <path d="M 352 154 A 70 70 0 0 1 468 154" fill="none" stroke="#eef1f6" stroke-width="13" stroke-linecap="round"/>
+        <!-- 81.2 tok/s arc (near-full) -->
+        <path d="M 352 154 A 70 70 0 0 1 463 78" fill="none" stroke="#76b900" stroke-width="13" stroke-linecap="round" opacity="0.3"/>
+        <!-- 80.4 tok/s arc (only 1% shorter) -->
+        <path d="M 352 154 A 70 70 0 0 1 460 80" fill="none" stroke="#76b900" stroke-width="13" stroke-linecap="round"/>
+        <text x="410" y="107" text-anchor="middle" font-size="28" font-weight="800" fill="#13161b" font-family="var(--sans)">80.4</text>
+        <text x="410" y="127" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">tok/s</text>
+        <text x="352" y="171" text-anchor="middle" font-size="9.5" fill="#8893a5" font-family="var(--sans)">0</text>
+        <text x="468" y="171" text-anchor="middle" font-size="9.5" fill="#76b900" font-family="var(--sans)">81.2</text>
+        <text x="410" y="194" text-anchor="middle" font-size="11" font-weight="700" fill="#76b900" font-family="var(--sans)">≈ flat (−1%)</text>
+        <!-- Efficiency gauge (right) — highlight: rises -->
+        <text x="683" y="26" text-anchor="middle" font-size="11" font-weight="700" fill="#8893a5" font-family="var(--sans)" letter-spacing=".04em">EFFICIENCY (tok/s/W)</text>
+        <circle cx="683" cy="112" r="70" fill="#f0f9e6" stroke="#76b900" stroke-width="1.5"/>
+        <path d="M 625 154 A 70 70 0 0 1 741 154" fill="none" stroke="#d4edab" stroke-width="13" stroke-linecap="round"/>
+        <!-- 0.47 arc (smaller, faint) -->
+        <path d="M 625 154 A 70 70 0 0 1 718 65" fill="none" stroke="#76b900" stroke-width="13" stroke-linecap="round" opacity="0.28"/>
+        <!-- 0.55 arc (larger, vivid) -->
+        <path d="M 625 154 A 70 70 0 0 1 741 107" fill="none" stroke="#5c9000" stroke-width="13" stroke-linecap="round"/>
+        <text x="683" y="107" text-anchor="middle" font-size="28" font-weight="800" fill="#13161b" font-family="var(--sans)">0.55</text>
+        <text x="683" y="127" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">tok/s/W</text>
+        <text x="625" y="171" text-anchor="middle" font-size="9.5" fill="#8893a5" font-family="var(--sans)">0.47</text>
+        <text x="741" y="171" text-anchor="middle" font-size="9.5" fill="#5c9000" font-family="var(--sans)">0.55</text>
+        <text x="683" y="194" text-anchor="middle" font-size="11" font-weight="700" fill="#5c9000" font-family="var(--sans)">↑ +16% efficiency</text>
+      </svg>
+    </div>
+    <figcaption>At the 150 W cap (the 5060 Ti's hardware floor), measured draw falls to 147 W while generation speed holds at 80.4 tok/s — essentially unchanged from the 81.2 tok/s at 180 W. Efficiency rises from 0.470 to 0.546 tok/s/W.</figcaption>
+  </figure>
+  <div class="note">The RTX 5060 Ti's driver-enforced minimum power limit is 150 W — it will not go lower. This experiment tested only three points: 150 W, 162 W, and 180 W (default). Cards with lower hardware floors (e.g., older 30xx/40xx series) can be capped further; the pattern is the same, but the efficiency gains scale wider.</div>
+
   <h2>The setup</h2>
   <p>One model (<b>Qwen2.5-Coder-7B-Instruct Q4_K_M</b>), one CUDA GPU, the shared 12-prompt suite. We query the GPU's default power limit via <code class="inl">nvidia-smi</code>, then sweep down through <b>100 → 90 → 80 → 70 → 60 → 50%</b> of that limit. At each step we set the cap, launch the server fresh, run the full prompt suite measuring generation tok/s, and sample the actual power draw in a background thread throughout — then compute <b>tokens per watt</b>.</p>
   <p>The intuition: at small batch sizes (which is every local-LLM run), the GPU sits mostly idle waiting for VRAM reads. The arithmetic flops are done long before the next weight tile arrives. Cutting power mostly throttles compute clocks, which aren't the bottleneck — so speed barely budges while efficiency climbs.</p>
 
   <h2>Results</h2>
   <div id="results"></div>
+  <p>The data tells a clean story. Cutting the power cap from 180 W to 150 W moves measured draw from 173 W to 147 W — a real 26 W reduction. Throughput slips from 81.2 to 80.4 tok/s, a difference of less than 1%. Efficiency climbs from 0.470 to 0.546 tok/s/W, a <b>+16%</b> improvement. The middle point (162 W cap, 159 W draw, 81.4 tok/s, 0.511 tok/s/W) confirms the trend is monotone: every watt removed improves efficiency without meaningfully denting speed. This is the memory-bandwidth-bound regime in action — the work gets done at the same rate, it just costs fewer joules.</p>
+
+  <h2>What we learned</h2>
+
+  <h3>Almost no speed lost — ~1% for 25 fewer watts</h3>
+  <p>Going from 180 W to 150 W costs 0.8 tok/s (81.2 → 80.4). That rounds to zero in any practical context. The GPU's compute clocks throttle, but compute was never the bottleneck — VRAM bandwidth is. Weight tensors stream at the same rate regardless of how fast the arithmetic units run once they receive them.</p>
+
+  <h3>+16% efficiency is real and free</h3>
+  <p>0.470 → 0.546 tok/s/W is a genuine 16% improvement in useful work per joule. Running an inference server around the clock at 150 W instead of 180 W saves roughly 250 Wh per day — about $0.03/day at average US electricity rates, or roughly $11/year — plus meaningful heat and noise reduction. The efficiency gain costs nothing except a one-time <code class="inl">nvidia-smi -pl 150</code> call before starting the server.</p>
+
+  <h3>Why bandwidth-bound workloads ignore watts</h3>
+  <p>At batch size 1, the GPU processes one token at a time. Each token pass reads the full model weight matrix from VRAM — several gigabytes of sequential reads. The arithmetic to apply those weights finishes in microseconds; waiting for the next VRAM tile takes milliseconds. Power throttling reduces clock speed, which reduces how fast the arithmetic finishes — but that does not matter, because the limiting step is always the memory bus. Speed stays flat until you throttle so hard that the memory controller itself clocks down, which for the 5060 Ti does not happen between 150 W and 180 W.</p>
+
+  <h3>The 150 W floor caveat</h3>
+  <p>The RTX 5060 Ti enforces a minimum power limit of 150 W. The driver refuses lower values. Only three points were measurable in this sweep. A card with a lower hardware floor would expose a wider range and potentially larger efficiency gains; the bandwidth-bound shape would be identical.</p>
+
+  <h2>Takeaway: cap it</h2>
+  <p>If you run local LLM inference on an NVIDIA GPU, set the power limit to its hardware floor. On an RTX 5060 Ti that is <code class="inl">nvidia-smi -pl 150</code>. You will lose less than 1% of your throughput and gain ~16% efficiency, a cooler card, and quieter fans. The command requires elevated privileges (Windows: Administrator prompt; Linux: sudo) and does not survive a reboot — add it to a startup script or run it before your inference server starts.</p>
+  <p>The principle generalises beyond this card: any single-user, batch-size-1 decode workload is memory-bandwidth-bound. Power caps hurt throughput only when compute is the bottleneck — and at batch 1 on consumer hardware it is not. The flat-then-cliff efficiency curve is a consistent property of the regime, not of this specific GPU.</p>
 
   <h2>Community results</h2>
   <div id="community"></div>

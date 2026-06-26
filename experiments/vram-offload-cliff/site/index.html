@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The VRAM Cliff — InventiveHQ</title>
-<meta name="description" content="What happens when your model doesn't fit in VRAM? Sweeping -ngl from 0 to 99 shows the performance cliff where CPU offload collapses throughput. Reproducible.">
+<title>The VRAM Cliff — 15× Slower the Moment Layers Spill to CPU — InventiveHQ</title>
+<meta name="description" content="We swept -ngl from 0 to 99 on Qwen2.5-Coder-14B on an RTX 5060 Ti. Full GPU: 43.18 tok/s. Full CPU: 2.89 tok/s. That's the cliff — and the last 8 layers alone account for a 3.5× jump.">
 <style>
   :root{
     --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
@@ -13,18 +13,29 @@
     --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
     --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
-  *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6}
+  html{scroll-behavior:smooth}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
   .wrap{max-width:880px;margin:0 auto;padding:0 22px}
-  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;margin:.2em 0 .35em}
-  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .5em}
-  h3{font-size:17px;font-weight:800;margin:1.4em 0 .3em}
+  h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:2.2em 0 .5em}
+  h3{font-size:17px;font-weight:800;margin:1.6em 0 .3em;letter-spacing:-.01em}
   p{margin:.7em 0;color:var(--ink2);font-size:17px}
-  a{color:var(--green-d)}
-  .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(92,144,0,.35)}
+  a:hover{border-color:var(--green-d)}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
   header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
   .lede{font-size:20px;color:var(--ink2);max-width:680px}
   .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:33px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
   .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .chartcard h3{margin:0 0 4px;font-size:16px;letter-spacing:-.01em}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
   table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
@@ -32,26 +43,176 @@
   th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
   td.num{font-family:var(--mono);text-align:right}
   .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
-  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
-  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--ink)}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;line-height:1.55;border:1px solid #1c2128}
+  pre .c{color:#7d8aa0}
+  pre .g{color:#9fe04f}
+  figure{margin:30px 0}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px;color:var(--ink)}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center;line-height:1.5}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px;color:var(--ink2)}
+  .note b{color:var(--ink)}
+  ul,ol{padding-left:1.4em;margin:.8em 0}
+  li{margin:.4em 0;font-size:17px;color:var(--ink2)}
+  li b{color:var(--ink)}
   footer{margin:56px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
   .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  .good{color:var(--green-d)}
+  .bad{color:var(--red)}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header class="hero"><div class="wrap">
   <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #5</div>
-  <span class="kicker">● VRAM Offload Cliff</span>
-  <h1>The VRAM cliff: what actually happens when your model doesn't fit</h1>
-  <p class="lede">Each layer left on the CPU drags throughput down a cliff. We sweep <b>-ngl</b> (GPU-offloaded layers) from 0 to 99 on a fixed model and record tok/s and VRAM at every step — showing the night-and-day gap between full GPU offload and partial CPU spill.</p>
+  <span class="kicker">● VRAM Offload Cliff · RTX 5060 Ti · 16 GB</span>
+  <h1>The VRAM cliff: 15× slower the moment layers spill to CPU</h1>
+  <p class="lede">We swept <b>-ngl</b> from 0 (all CPU) to 99 (all GPU) on Qwen2.5-Coder-14B on an RTX 5060 Ti and recorded tok/s at every step. The result is not a gentle slope — it's a cliff you fall off. Full GPU: <b>43.18 tok/s</b>. Full CPU: <b>2.89 tok/s</b>. And the jump from ngl 40 to ngl 99 alone is a 3.5× leap.</p>
+  <div class="byline">
+    <span>By <b>InventiveHQ</b></span><span>·</span>
+    <span>June 2026</span><span>·</span>
+    <span>llama.cpp · CUDA · RTX 5060 Ti · Qwen2.5-Coder-14B Q4_K_M</span>
+  </div>
+  <div class="tldr">
+    <div class="stat"><div class="n">15<span class="u">×</span></div><div class="l">gap between all-CPU and all-GPU — 2.89 vs 43.18 tok/s on the same model</div></div>
+    <div class="stat"><div class="n">43<span class="u"> tok/s</span></div><div class="l">peak throughput at ngl 99 — all 48 layers on the RTX 5060 Ti</div></div>
+    <div class="stat"><div class="n">9.2<span class="u"> GB</span></div><div class="l">VRAM at full offload — fits a 16 GB card with over 6 GB to spare</div></div>
+  </div>
 </div></header>
 
 <main class="wrap">
+
+  <h2>Why this matters: the hidden cost of VRAM spill</h2>
+  <p>When a model doesn't fully fit in your GPU's VRAM, <code class="inl">llama.cpp</code> offloads the overflow layers to system RAM. The <code class="inl">-ngl</code> flag controls how many layers go on GPU; every layer past that limit runs on CPU. Most people assume this is a gradual trade-off — more GPU layers means a bit faster, fewer means a bit slower, and the system finds its own equilibrium. <b>It does not.</b></p>
+  <p>The penalty for even a few CPU layers is severe, because the GPU must stall and pull those weights across PCIe on every single decoding step. And as the data shows, the last few layers carry disproportionate weight — the cliff doesn't even begin to steepen until the final step. This experiment sweeps every meaningful <code class="inl">-ngl</code> value on a real 14B model and measures exactly where the cliff is and how steep it falls.</p>
+
+  <h2>How GPU layer offloading works</h2>
+  <p>A transformer model is a stack of layers processed sequentially for each generated token. On GPU, each layer is served at memory bandwidth of roughly <b>480 GB/s</b> on the RTX 5060 Ti's GDDR7. On CPU, DDR5 peaks around 50–80 GB/s — and every time the decode pass hits a CPU layer, the GPU must cross PCIe (practical throughput ~16 GB/s one-way) to fetch those weights, process them, and send activations back. The GPU stalls while it waits. Not just for one layer — for every CPU layer, on every forward pass, for every token you generate.</p>
+  <p>The relationship between layer count and throughput is therefore not linear. Each CPU layer forces a PCIe round trip that the GPU cannot overlap with useful work. The more CPU layers, the more stalls compound. And because the final layers of the stack — including the deepest attention heads and the LM head projection — handle the highest-dimensional representations, removing even 8 of them from CPU unlocks a disproportionate speed jump.</p>
+
+  <figure>
+    <div class="panel">
+      <div class="head">
+        <span class="t">Model layers: GPU vs CPU split — how throughput collapses</span>
+      </div>
+      <svg viewBox="0 0 820 290" width="100%" role="img" aria-label="Three scenarios: all-CPU at ngl 0 gives 2.89 tok/s; partial offload at ngl 40 gives 12.5 tok/s; all-GPU at ngl 99 gives 43.18 tok/s.">
+        <rect width="820" height="290" fill="#ffffff"/>
+        <!-- Column dividers -->
+        <line x1="273" y1="10" x2="273" y2="270" stroke="#e7eaf0" stroke-width="1"/>
+        <line x1="547" y1="10" x2="547" y2="270" stroke="#e7eaf0" stroke-width="1"/>
+        <!-- ===== Column 1: ngl=0, all CPU ===== -->
+        <text x="137" y="22" text-anchor="middle" font-size="13" font-weight="800" fill="#13161b" font-family="var(--sans)">All CPU</text>
+        <text x="137" y="37" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--mono)">-ngl 0</text>
+        <!-- CPU box (all 48 layers, 120px tall) -->
+        <rect x="67" y="46" width="140" height="120" rx="7" fill="#f1f4f9" stroke="#8893a5" stroke-width="2"/>
+        <line x1="77" y1="66" x2="197" y2="66" stroke="#cfd6e0" stroke-width="1"/>
+        <line x1="77" y1="86" x2="197" y2="86" stroke="#cfd6e0" stroke-width="1"/>
+        <line x1="77" y1="106" x2="197" y2="106" stroke="#cfd6e0" stroke-width="1"/>
+        <line x1="77" y1="126" x2="197" y2="126" stroke="#cfd6e0" stroke-width="1"/>
+        <line x1="77" y1="146" x2="197" y2="146" stroke="#cfd6e0" stroke-width="1"/>
+        <text x="137" y="101" text-anchor="middle" font-size="12" font-weight="700" fill="#8893a5" font-family="var(--sans)">CPU</text>
+        <text x="137" y="117" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">48 layers · slow</text>
+        <!-- Throughput meter -->
+        <text x="137" y="186" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">throughput</text>
+        <rect x="67" y="193" width="140" height="18" rx="4" fill="#f1f4f9"/>
+        <!-- 2.89/43.18 * 140 = 9.4px -->
+        <rect x="67" y="193" width="9" height="18" rx="4" fill="#e3543b"/>
+        <text x="137" y="228" text-anchor="middle" font-size="14" font-weight="800" fill="#e3543b" font-family="var(--sans)">2.89 tok/s</text>
+        <!-- ===== Column 2: ngl=40, partial ===== -->
+        <text x="410" y="22" text-anchor="middle" font-size="13" font-weight="800" fill="#13161b" font-family="var(--sans)">Partial offload</text>
+        <text x="410" y="37" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--mono)">-ngl 40</text>
+        <!-- GPU box (40/48 * 120 ≈ 100px) -->
+        <rect x="340" y="46" width="140" height="100" rx="7" fill="#eaf5d8" stroke="#76b900" stroke-width="2"/>
+        <line x1="350" y1="66" x2="470" y2="66" stroke="#b2d97a" stroke-width="1"/>
+        <line x1="350" y1="86" x2="470" y2="86" stroke="#b2d97a" stroke-width="1"/>
+        <line x1="350" y1="106" x2="470" y2="106" stroke="#b2d97a" stroke-width="1"/>
+        <line x1="350" y1="126" x2="470" y2="126" stroke="#b2d97a" stroke-width="1"/>
+        <text x="410" y="93" text-anchor="middle" font-size="12" font-weight="700" fill="#5c9000" font-family="var(--sans)">GPU</text>
+        <text x="410" y="109" text-anchor="middle" font-size="11" fill="#5c9000" font-family="var(--sans)">40 layers</text>
+        <!-- CPU remnant (8/48 * 120 = 20px, shown as thin bar) -->
+        <rect x="340" y="150" width="140" height="16" rx="4" fill="#f1f4f9" stroke="#8893a5" stroke-width="1.5"/>
+        <text x="410" y="162" text-anchor="middle" font-size="10" fill="#8893a5" font-family="var(--sans)">CPU · 8 layers (stall!)</text>
+        <!-- Throughput meter -->
+        <text x="410" y="186" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">throughput</text>
+        <rect x="340" y="193" width="140" height="18" rx="4" fill="#f1f4f9"/>
+        <!-- 12.5/43.18 * 140 = 40.5px -->
+        <rect x="340" y="193" width="41" height="18" rx="4" fill="#f0a23b"/>
+        <text x="410" y="228" text-anchor="middle" font-size="14" font-weight="800" fill="#f0a23b" font-family="var(--sans)">12.5 tok/s</text>
+        <!-- ===== Column 3: ngl=99, all GPU ===== -->
+        <text x="683" y="22" text-anchor="middle" font-size="13" font-weight="800" fill="#13161b" font-family="var(--sans)">All GPU</text>
+        <text x="683" y="37" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--mono)">-ngl 99</text>
+        <!-- GPU box (full 120px) -->
+        <rect x="613" y="46" width="140" height="120" rx="7" fill="#eaf5d8" stroke="#76b900" stroke-width="2"/>
+        <line x1="623" y1="66" x2="733" y2="66" stroke="#b2d97a" stroke-width="1"/>
+        <line x1="623" y1="86" x2="733" y2="86" stroke="#b2d97a" stroke-width="1"/>
+        <line x1="623" y1="106" x2="733" y2="106" stroke="#b2d97a" stroke-width="1"/>
+        <line x1="623" y1="126" x2="733" y2="126" stroke="#b2d97a" stroke-width="1"/>
+        <line x1="623" y1="146" x2="733" y2="146" stroke="#b2d97a" stroke-width="1"/>
+        <text x="683" y="101" text-anchor="middle" font-size="12" font-weight="700" fill="#5c9000" font-family="var(--sans)">GPU</text>
+        <text x="683" y="117" text-anchor="middle" font-size="11" fill="#5c9000" font-family="var(--sans)">48 layers</text>
+        <!-- Throughput meter (full bar) -->
+        <text x="683" y="186" text-anchor="middle" font-size="11" fill="#8893a5" font-family="var(--sans)">throughput</text>
+        <rect x="613" y="193" width="140" height="18" rx="4" fill="#76b900"/>
+        <text x="683" y="228" text-anchor="middle" font-size="14" font-weight="800" fill="#5c9000" font-family="var(--sans)">43.18 tok/s</text>
+        <!-- Callout -->
+        <text x="683" y="252" text-anchor="middle" font-size="12" font-weight="700" fill="#5c9000" font-family="var(--sans)">≈ 15× faster than all-CPU</text>
+        <!-- Bottom attribution -->
+        <text x="410" y="278" text-anchor="middle" font-size="10.5" fill="#8893a5" font-family="var(--sans)">Qwen2.5-Coder-14B-Instruct Q4_K_M · RTX 5060 Ti 16 GB · llama.cpp CUDA</text>
+      </svg>
+    </div>
+    <figcaption>Three <code class="inl">-ngl</code> settings on Qwen2.5-Coder-14B (48 transformer layers). As layers fall to CPU, throughput collapses. At ngl 40 — with only 8 of 48 layers still on CPU — you're already 71% below full-GPU speed.</figcaption>
+  </figure>
+
+  <div class="note"><b>The absolute gain from ngl 40 → 99</b> (+30.7 tok/s) is more than three times the total throughput gained across all five previous steps combined (+9.6 tok/s). One final push — 8 fewer layers on CPU — does what the entire partial-offload range could not. The last layers matter most.</div>
+
   <h2>The setup</h2>
-  <p>One model (Qwen2.5-Coder-14B Q4_K_M — large enough that low <code class="inl">-ngl</code> values force significant CPU offload), run with the same 12-prompt suite at each layer count. <b>-ngl 0</b> means every layer runs on CPU; <b>-ngl 99</b> means all layers fit on GPU. The interesting region is in between: how fast does the cliff drop, and is there a sweet spot where a few GPU layers buy most of the speed?</p>
+  <table>
+    <tr><th>Component</th><th>What we used</th></tr>
+    <tr><td>GPU</td><td>NVIDIA RTX 5060 Ti — Blackwell (sm_120), 16 GB GDDR7</td></tr>
+    <tr><td>Runtime</td><td>llama.cpp (CUDA 12.4 build)</td></tr>
+    <tr><td>Model</td><td>Qwen2.5-Coder-14B-Instruct (Q4_K_M, ~9.2 GB on disk)</td></tr>
+    <tr><td>Sweep</td><td><code class="inl">-ngl</code> 0, 8, 16, 24, 32, 40, 99 — same 12-prompt suite at each step</td></tr>
+    <tr><td>Metrics</td><td>tok/s (server-reported <code class="inl">predicted_per_second</code>) · VRAM MB (nvidia-smi delta on model load)</td></tr>
+  </table>
+  <pre><span class="c"># Sweep -ngl from 0 (all CPU) to 99 (all GPU) — repeated for each value</span>
+llama-server -m Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf <span class="g">^</span>
+  -ngl 0 --temp 0 --top-k 1 -n 256   <span class="c"># repeat with 8 16 24 32 40 99</span>
+
+<span class="c"># Or run the automated sweep via bench.py</span>
+python scripts/bench.py --backend cuda --gpu 0
+python scripts/aggregate.py   <span class="c"># → results/data.json</span></pre>
 
   <h2>Results</h2>
   <div id="results"></div>
+
+  <h2>Reading the charts</h2>
+  <p>The throughput line tells a precise story. From <b>ngl 0</b> (2.89 tok/s) to <b>ngl 40</b>, each increment of 8 GPU layers buys modest, compounding gains: 2.89 → 3.58 → 4.24 → 5.61 → 7.26 → 12.5 tok/s — a 4.3× improvement spanning the entire partial-offload range. Then from ngl 40 to ngl 99, the last 8 CPU layers come off and throughput leaps to <b>43.18 tok/s</b> — a <b>3.5× jump</b> for just those final layers. In absolute terms: the last step yields +30.7 tok/s, versus +9.6 tok/s for everything before it. That is the cliff, measured precisely.</p>
+  <p>The VRAM chart tracks the cost of getting there. At ngl 0, only <b>265 MB</b> of VRAM is used — just the KV cache and runtime overhead; the model itself lives in system RAM. Each batch of 8 GPU layers adds roughly <b>1,300–1,600 MB</b>, growing steadily to <b>9,179 MB</b> at ngl 99. A 16 GB card handles this with over 6 GB headroom at 4K context. Even a 10 GB card clears ngl 99 with room to spare.</p>
+
+  <h2>What we learned</h2>
+
+  <h3>The gap is ~15× — not 2×, not 5×</h3>
+  <p>Full GPU (ngl 99) runs at <span class="good"><b>43.18 tok/s</b></span>. Full CPU (ngl 0) delivers <span class="bad"><b>2.89 tok/s</b></span>. That's a <b>14.9× gap</b> on the exact same model and quant. If you assume partial offload will recover "most of the GPU performance," the data disagrees sharply: at ngl 40, with 83% of layers on GPU, you're still at only 12.5 tok/s — less than 30% of full-GPU throughput.</p>
+
+  <h3>The non-linear last-layers effect</h3>
+  <p>The biggest surprise in the sweep is not the size of the cliff — it's where the cliff is. Going from ngl 32 to ngl 40 (7.26 → 12.5 tok/s) is already the largest single-step gain in the partial range. But removing the final 8 CPU layers (ngl 40 → 99) yields 43.18 tok/s — a 3.5× multiplier on a single step. Once the GPU has all layers in fast GDDR7, it stops stalling on PCIe entirely; the decode pipeline becomes fully bandwidth-bound on local memory and throughput jumps dramatically.</p>
+
+  <h3>Partial offload is a cliff, not a slope</h3>
+  <p>There is no sweet spot in the partial-offload zone that recovers most of the GPU performance. Even at ngl 40 — the high end of the partial range, with 40 of 48 layers on GPU — throughput is 12.5 tok/s against a full-GPU ceiling of 43.18. The curve does not level off; it stays near the bottom until the very last CPU layers are removed. You are either fully on the GPU, or you are not. Tuning <code class="inl">-ngl</code> to find a partial compromise does not work.</p>
+
+  <h3>The model fits if your card has 10 GB+</h3>
+  <p>At ngl 99, VRAM usage is <b>9,179 MB</b>. An RTX 5060 Ti (16 GB), RTX 3090 (24 GB), or RTX 4090 (24 GB) all clear this with ease. A 10 GB card (RTX 3080, RTX 2080 Ti) still fits ngl 99 with roughly 800 MB headroom before the KV cache fills it — keep context to 2K or use <code class="inl">-ctk q8_0</code> to stay within bounds. An 8 GB card cannot fit ngl 99 for this model and quant.</p>
+
+  <h2>The practical takeaway</h2>
+  <p><b>Size your model to fit entirely in VRAM, or accept the cliff.</b> There is no useful partial-offload zone — the curve doesn't gradually recover, it collapses and stays down. The right move is to choose a model that runs at <code class="inl">-ngl 99</code> on your card:</p>
+  <ul>
+    <li><b>16 GB card (RTX 5060 Ti, RTX 4080):</b> Q4_K_M 14B fits cleanly at ~9.2 GB VRAM. Use <code class="inl">-ngl 99</code> and get 43+ tok/s.</li>
+    <li><b>10–12 GB card (RTX 3080, RTX 2080 Ti):</b> Q4_K_M 7B (~4.4 GB) fits with headroom. Avoid partial-offloading a 14B — you'll be stuck at 12.5 tok/s or below.</li>
+    <li><b>8 GB card:</b> Q4_K_M 7B fits. A 14B at any partial <code class="inl">-ngl</code> setting will live near the bottom of the cliff.</li>
+  </ul>
+  <p>If you need 14B output quality on a card with less VRAM, consider a Q2_K quant (~5.5 GB). A fully-GPU Q2_K will significantly outperform a partial-offload Q4_K_M — the cliff penalty overwhelms the quant penalty every time.</p>
 
   <h2>Community results</h2>
   <div id="community"></div>
