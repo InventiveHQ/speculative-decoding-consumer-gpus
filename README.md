@@ -14,7 +14,7 @@ We run the same ideas on consumer GPUs and CPUs, and publish what actually happe
 | # | Experiment | The hook | Status |
 |---|---|---|---|
 | 1 | [Speculative decoding](experiments/speculative-decoding/) | NVIDIA's 15× dFlash trick on a $570 GPU (and an 8-year-old one, and a CPU) — where it helps, where it backfires | ✅ Published |
-| 2 | [Runner showdown](experiments/runner-showdown/) (Ollama vs llama.cpp vs LM Studio) | "Which wrapper is fastest — and what does the convenience cost you?" | 🚧 Scaffolded — results pending |
+| 2 | [Runner showdown](experiments/runner-showdown/) (Ollama vs llama.cpp vs LM Studio) | Same llama.cpp engine: **LM Studio ≈ raw (0.3%), Ollama ~10% slower** | ✅ Results (RTX 5060 Ti) |
 | 3 | [GGUF quantization](experiments/quantization-quality/): speed vs quality | Output fidelity vs Q8: **Q2 21% → Q4 57% → Q6 80%** — the cliff is below Q4; sweet spot Q4–Q5 | ✅ Results (RTX 5060 Ti) |
 | 4 | [KV-cache quantization](experiments/kv-cache-quant/) | q8_0 KV ≈ lossless (82% similar); **q4_0 KV wrecks output quality (8%)** | ✅ Results (RTX 5060 Ti) |
 | 5 | [The VRAM cliff](experiments/vram-offload-cliff/) (`-ngl` sweep) | **2.9 → 43 tok/s** as a 14B moves to GPU — the last layers matter most | ✅ Results (RTX 5060 Ti) |

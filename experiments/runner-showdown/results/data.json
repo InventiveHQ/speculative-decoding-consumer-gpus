@@ -1,12 +1,77 @@
 {
   "experiment": "runner-showdown",
   "metric": "wall-clock tokens/sec",
-  "has_data": false,
-  "devices": [],
+  "has_data": true,
+  "devices": [
+    {
+      "device": "5060ti",
+      "fastest": "llama.cpp",
+      "runners": [
+        {
+          "name": "llama.cpp",
+          "model": "local-model",
+          "overall": 77.0,
+          "cats": {
+            "code": 76.9,
+            "math": 76.8,
+            "reasoning": 77.1,
+            "summarization": 76.4,
+            "chat": 78.2
+          },
+          "rel": 1.0,
+          "overhead_pct": 0.0
+        },
+        {
+          "name": "lm studio",
+          "model": "qwen2.5-coder-7b-instruct",
+          "overall": 76.8,
+          "cats": {
+            "code": 77.5,
+            "math": 77.1,
+            "reasoning": 77.0,
+            "summarization": 75.0,
+            "chat": 77.1
+          },
+          "rel": 1.0,
+          "overhead_pct": 0.3
+        },
+        {
+          "name": "ollama",
+          "model": "qwen2.5-coder:7b",
+          "overall": 69.1,
+          "cats": {
+            "code": 70.5,
+            "math": 69.6,
+            "reasoning": 69.3,
+            "summarization": 65.3,
+            "chat": 69.8
+          },
+          "rel": 0.9,
+          "overhead_pct": 10.3
+        }
+      ]
+    }
+  ],
   "matrix": {
-    "runners": [],
-    "devices": [],
-    "cells": {}
+    "runners": [
+      "llama.cpp",
+      "lm studio",
+      "ollama"
+    ],
+    "devices": [
+      "5060ti"
+    ],
+    "cells": {
+      "llama.cpp": {
+        "5060ti": 77.0
+      },
+      "lm studio": {
+        "5060ti": 76.8
+      },
+      "ollama": {
+        "5060ti": 69.1
+      }
+    }
   },
   "cat_keys": [
     "code",

@@ -1,0 +1,286 @@
+{
+  "meta": {
+    "device": "5060ti",
+    "max_tokens": 256,
+    "metric": "wall-clock tokens/sec",
+    "note": "same model+quant across runners; greedy, 256 tokens, shared 12-prompt suite"
+  },
+  "runners": [
+    {
+      "name": "llama.cpp",
+      "endpoint": "127.0.0.1:8080",
+      "model": "local-model",
+      "status": "ok",
+      "records": [
+        {
+          "id": "code_linkedlist",
+          "category": "code",
+          "tps": 77.1,
+          "reported_tps": 78.22,
+          "predicted_n": 256
+        },
+        {
+          "id": "code_lru",
+          "category": "code",
+          "tps": 76.99,
+          "reported_tps": 78.28,
+          "predicted_n": 256
+        },
+        {
+          "id": "code_sql",
+          "category": "code",
+          "tps": 76.54,
+          "reported_tps": 77.87,
+          "predicted_n": 256
+        },
+        {
+          "id": "math_gsm8k_1",
+          "category": "math",
+          "tps": 76.96,
+          "reported_tps": 78.21,
+          "predicted_n": 256
+        },
+        {
+          "id": "math_gsm8k_2",
+          "category": "math",
+          "tps": 76.18,
+          "reported_tps": 77.72,
+          "predicted_n": 256
+        },
+        {
+          "id": "math_algebra",
+          "category": "math",
+          "tps": 77.11,
+          "reported_tps": 78.53,
+          "predicted_n": 256
+        },
+        {
+          "id": "reason_puzzle",
+          "category": "reasoning",
+          "tps": 76.9,
+          "reported_tps": 78.51,
+          "predicted_n": 256
+        },
+        {
+          "id": "reason_plan",
+          "category": "reasoning",
+          "tps": 77.3,
+          "reported_tps": 78.78,
+          "predicted_n": 256
+        },
+        {
+          "id": "summ_transformer",
+          "category": "summarization",
+          "tps": 76.09,
+          "reported_tps": 79.57,
+          "predicted_n": 161
+        },
+        {
+          "id": "summ_rewrite",
+          "category": "summarization",
+          "tps": 76.72,
+          "reported_tps": 79.48,
+          "predicted_n": 191
+        },
+        {
+          "id": "chat_advice",
+          "category": "chat",
+          "tps": 78.14,
+          "reported_tps": 79.54,
+          "predicted_n": 256
+        },
+        {
+          "id": "chat_explain",
+          "category": "chat",
+          "tps": 78.23,
+          "reported_tps": 79.59,
+          "predicted_n": 256
+        }
+      ]
+    },
+    {
+      "name": "ollama",
+      "endpoint": "127.0.0.1:11434",
+      "model": "qwen2.5-coder:7b",
+      "status": "ok",
+      "records": [
+        {
+          "id": "code_linkedlist",
+          "category": "code",
+          "tps": 71.05,
+          "reported_tps": 71.05,
+          "predicted_n": 256
+        },
+        {
+          "id": "code_lru",
+          "category": "code",
+          "tps": 70.33,
+          "reported_tps": 70.33,
+          "predicted_n": 256
+        },
+        {
+          "id": "code_sql",
+          "category": "code",
+          "tps": 70.01,
+          "reported_tps": 70.01,
+          "predicted_n": 256
+        },
+        {
+          "id": "math_gsm8k_1",
+          "category": "math",
+          "tps": 68.8,
+          "reported_tps": 68.8,
+          "predicted_n": 256
+        },
+        {
+          "id": "math_gsm8k_2",
+          "category": "math",
+          "tps": 69.2,
+          "reported_tps": 69.2,
+          "predicted_n": 256
+        },
+        {
+          "id": "math_algebra",
+          "category": "math",
+          "tps": 70.94,
+          "reported_tps": 70.94,
+          "predicted_n": 256
+        },
+        {
+          "id": "reason_puzzle",
+          "category": "reasoning",
+          "tps": 69.81,
+          "reported_tps": 69.81,
+          "predicted_n": 256
+        },
+        {
+          "id": "reason_plan",
+          "category": "reasoning",
+          "tps": 68.73,
+          "reported_tps": 68.73,
+          "predicted_n": 201
+        },
+        {
+          "id": "summ_transformer",
+          "category": "summarization",
+          "tps": 65.45,
+          "reported_tps": 65.45,
+          "predicted_n": 146
+        },
+        {
+          "id": "summ_rewrite",
+          "category": "summarization",
+          "tps": 65.12,
+          "reported_tps": 65.12,
+          "predicted_n": 138
+        },
+        {
+          "id": "chat_advice",
+          "category": "chat",
+          "tps": 70.08,
+          "reported_tps": 70.08,
+          "predicted_n": 256
+        },
+        {
+          "id": "chat_explain",
+          "category": "chat",
+          "tps": 69.43,
+          "reported_tps": 69.43,
+          "predicted_n": 256
+        }
+      ]
+    },
+    {
+      "name": "lm studio",
+      "endpoint": "127.0.0.1:1234",
+      "model": "qwen2.5-coder-7b-instruct",
+      "status": "ok",
+      "records": [
+        {
+          "id": "code_linkedlist",
+          "category": "code",
+          "tps": 77.6,
+          "reported_tps": 77.6,
+          "predicted_n": 256
+        },
+        {
+          "id": "code_lru",
+          "category": "code",
+          "tps": 77.44,
+          "reported_tps": 77.44,
+          "predicted_n": 256
+        },
+        {
+          "id": "code_sql",
+          "category": "code",
+          "tps": 77.31,
+          "reported_tps": 77.31,
+          "predicted_n": 256
+        },
+        {
+          "id": "math_gsm8k_1",
+          "category": "math",
+          "tps": 77.15,
+          "reported_tps": 77.15,
+          "predicted_n": 256
+        },
+        {
+          "id": "math_gsm8k_2",
+          "category": "math",
+          "tps": 77.09,
+          "reported_tps": 77.09,
+          "predicted_n": 256
+        },
+        {
+          "id": "math_algebra",
+          "category": "math",
+          "tps": 76.93,
+          "reported_tps": 76.93,
+          "predicted_n": 256
+        },
+        {
+          "id": "reason_puzzle",
+          "category": "reasoning",
+          "tps": 77.17,
+          "reported_tps": 77.17,
+          "predicted_n": 256
+        },
+        {
+          "id": "reason_plan",
+          "category": "reasoning",
+          "tps": 76.84,
+          "reported_tps": 76.84,
+          "predicted_n": 237
+        },
+        {
+          "id": "summ_transformer",
+          "category": "summarization",
+          "tps": 74.32,
+          "reported_tps": 74.32,
+          "predicted_n": 144
+        },
+        {
+          "id": "summ_rewrite",
+          "category": "summarization",
+          "tps": 75.64,
+          "reported_tps": 75.64,
+          "predicted_n": 166
+        },
+        {
+          "id": "chat_advice",
+          "category": "chat",
+          "tps": 76.92,
+          "reported_tps": 76.92,
+          "predicted_n": 256
+        },
+        {
+          "id": "chat_explain",
+          "category": "chat",
+          "tps": 77.37,
+          "reported_tps": 77.37,
+          "predicted_n": 256
+        }
+      ]
+    }
+  ]
+}
