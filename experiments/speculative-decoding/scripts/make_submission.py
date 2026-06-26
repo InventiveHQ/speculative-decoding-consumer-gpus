@@ -13,6 +13,8 @@ import argparse, json, os, platform, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 R = os.path.join(ROOT, "results")
+sys.path.insert(0, os.path.join(ROOT, "..", "..", "harness"))
+import hwinfo  # noqa: E402
 
 # results files we know about -> a friendly key in the submission
 KNOWN = {
@@ -21,45 +23,6 @@ KNOWN = {
     "results_14b.json": "gpu_14b",
     "results_cpu.json": "cpu",
 }
-
-
-def cpu_name():
-    """Best-effort friendly CPU model name across OSes."""
-    try:
-        if platform.system() == "Windows":
-            out = subprocess.check_output(
-                ["powershell", "-NoProfile", "-Command",
-                 "(Get-CimInstance Win32_Processor).Name"],
-                text=True, stderr=subprocess.DEVNULL)
-            if out.strip():
-                return out.strip().splitlines()[0].strip()
-        elif platform.system() == "Linux":
-            for line in open("/proc/cpuinfo"):
-                if line.lower().startswith("model name"):
-                    return line.split(":", 1)[1].strip()
-        elif platform.system() == "Darwin":
-            return subprocess.check_output(
-                ["sysctl", "-n", "machdep.cpu.brand_string"],
-                text=True, stderr=subprocess.DEVNULL).strip()
-    except Exception:
-        pass
-    return platform.processor() or platform.machine()
-
-
-def nvidia_smi():
-    try:
-        out = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=name,memory.total,driver_version,compute_cap",
-             "--format=csv,noheader"], text=True, stderr=subprocess.DEVNULL)
-        gpus = []
-        for line in out.strip().splitlines():
-            parts = [p.strip() for p in line.split(",")]
-            if len(parts) >= 4:
-                gpus.append({"name": parts[0], "memory": parts[1],
-                             "driver": parts[2], "compute_cap": parts[3]})
-        return gpus
-    except Exception:
-        return []
 
 
 def git_state(path):
@@ -125,18 +88,14 @@ def main():
     submission = {
         "name": args.name,
         "notes": args.notes,
-        "hardware": {
-            "platform": platform.platform(),
-            "python": platform.python_version(),
-            "cpu": cpu_name(),
-            "gpus": nvidia_smi(),
-        },
+        "hardware": hwinfo.collect(),
         "runs": runs,
     }
     out = os.path.join(R, "community", f"{args.name}.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     json.dump(submission, open(out, "w", encoding="utf-8"), indent=2)
     print(f"Wrote {out}")
+    print("Captured rig: " + hwinfo.summary(submission["hardware"]))
     print("Open a pull request adding that file to results/community/. Thank you!")
 
 

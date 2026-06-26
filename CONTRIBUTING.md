@@ -41,9 +41,14 @@ Run only what you can — a single `results/results.json` is a great contributio
 python scripts/make_submission.py --name "rtx4090-ryzen7950x" --notes "llama.cpp b9999, Q4_K_M"
 ```
 
-That writes `results/community/<name>.json` with your hardware info + results. Open a
-**pull request** adding just that file. CI validates it and rebuilds the
-experiment's page automatically on merge.
+That writes `results/community/<name>.json` with your results plus an **automatically
+captured hardware snapshot** — CPU (model + core/thread count), RAM (size, speed,
+type), every GPU with its **PCIe link gen × width**, motherboard, and storage type.
+It's detected cross-platform by [`harness/hwinfo.py`](harness/hwinfo.py) (Windows /
+Linux / macOS), so you don't fill it in by hand. Skim the `"hardware"` block before
+you open the PR — it's plain JSON; delete any field you'd rather not share. Open a
+**pull request** adding just that file. CI validates it and rebuilds the experiment's
+page automatically on merge.
 
 By submitting you agree to license your data under **CC BY 4.0** (see
 [DATA-LICENSE.md](DATA-LICENSE.md)).

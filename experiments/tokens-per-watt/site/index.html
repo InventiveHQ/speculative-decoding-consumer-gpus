@@ -128,6 +128,16 @@
   <div class="note">The RTX 5060 Ti's driver-enforced minimum power limit is 150 W — it will not go lower. This experiment tested only three points: 150 W, 162 W, and 180 W (default). Cards with lower hardware floors (e.g., older 30xx/40xx series) can be capped further; the pattern is the same, but the efficiency gains scale wider.</div>
 
   <h2>The setup</h2>
+<div class="note" id="testrig"><b>Reference test rig.</b> Every &ldquo;reference&rdquo; number on this page was measured on one machine &mdash; an Alienware&nbsp;Aurora&nbsp;R7:
+<ul style="margin:.5em 0 0;padding-left:1.25em;line-height:1.55">
+<li><b>CPU</b> &mdash; Intel Core i7-8700 (6&nbsp;cores&nbsp;/&nbsp;12&nbsp;threads, Coffee&nbsp;Lake)</li>
+<li><b>Motherboard</b> &mdash; Alienware 0VDT73, Intel 300-series &mdash; <b>PCIe&nbsp;3.0</b> root complex</li>
+<li><b>RAM</b> &mdash; 64&nbsp;GB DDR4-2400 (4&nbsp;&times;&nbsp;16&nbsp;GB, dual-channel)</li>
+<li><b>GPU</b> &mdash; NVIDIA RTX&nbsp;5060&nbsp;Ti 16&nbsp;GB (Blackwell), running at <b>PCIe&nbsp;3.0&nbsp;&times;8</b><span> &middot; GTX&nbsp;1080&nbsp;Ti 11&nbsp;GB (Pascal) on the multi-GPU experiments</span></li>
+<li><b>Storage</b> &mdash; models on a SATA SSD volume (Samsung 860&nbsp;EVO M.2 + SanDisk) &mdash; SATA, not NVMe</li>
+<li><b>OS</b> &mdash; Windows Server 2025 (build 26100)</li>
+</ul>
+<span style="display:block;margin-top:.5em">In-VRAM throughput is GPU-memory-bandwidth bound, so bus&nbsp;/&nbsp;RAM&nbsp;/&nbsp;SSD speed barely move it &mdash; but they shape the offload and CPU results. <b>Running this yourself?</b> <code class="inl">scripts/make_submission.py</code> auto-captures <em>your</em> rig (CPU, RAM, GPU + PCIe link, board, storage) into the submission.</span></div>
   <p>One model (<b>Qwen2.5-Coder-7B-Instruct Q4_K_M</b>), one CUDA GPU, the shared 12-prompt suite. We query the GPU's default power limit via <code class="inl">nvidia-smi</code>, then sweep down through <b>100 → 90 → 80 → 70 → 60 → 50%</b> of that limit. At each step we set the cap, launch the server fresh, run the full prompt suite measuring generation tok/s, and sample the actual power draw in a background thread throughout — then compute <b>tokens per watt</b>.</p>
   <p>The intuition: at small batch sizes (which is every local-LLM run), the GPU sits mostly idle waiting for VRAM reads. The arithmetic flops are done long before the next weight tile arrives. Cutting power mostly throttles compute clocks, which aren't the bottleneck — so speed barely budges while efficiency climbs.</p>
 

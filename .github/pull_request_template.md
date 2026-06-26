@@ -8,7 +8,7 @@
 
 ## For results submissions
 
-- **Hardware:** <!-- e.g. RTX 4090 + Ryzen 9 7950X -->
+- **Hardware:** <!-- e.g. RTX 4090 + Ryzen 9 7950X — full specs (CPU/RAM/GPU+PCIe/board/storage) are auto-captured in the submission's "hardware" block by make_submission.py -->
 - **llama.cpp version:** <!-- e.g. b9789 -->
 - **Backends run:** <!-- cuda / vulkan / cpu -->
 - **Models / quant:** <!-- e.g. Qwen2.5-Coder-7B Q4_K_S + 0.5B Q8_0 draft -->

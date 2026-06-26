@@ -170,6 +170,16 @@
   </figure>
 
   <h2>The setup</h2>
+<div class="note" id="testrig"><b>Reference test rig.</b> Every &ldquo;reference&rdquo; number on this page was measured on one machine &mdash; an Alienware&nbsp;Aurora&nbsp;R7:
+<ul style="margin:.5em 0 0;padding-left:1.25em;line-height:1.55">
+<li><b>CPU</b> &mdash; Intel Core i7-8700 (6&nbsp;cores&nbsp;/&nbsp;12&nbsp;threads, Coffee&nbsp;Lake)</li>
+<li><b>Motherboard</b> &mdash; Alienware 0VDT73, Intel 300-series &mdash; <b>PCIe&nbsp;3.0</b> root complex</li>
+<li><b>RAM</b> &mdash; 64&nbsp;GB DDR4-2400 (4&nbsp;&times;&nbsp;16&nbsp;GB, dual-channel)</li>
+<li><b>GPU</b> &mdash; NVIDIA RTX&nbsp;5060&nbsp;Ti 16&nbsp;GB (Blackwell), running at <b>PCIe&nbsp;3.0&nbsp;&times;8</b><span> &middot; GTX&nbsp;1080&nbsp;Ti 11&nbsp;GB (Pascal) on the multi-GPU experiments</span></li>
+<li><b>Storage</b> &mdash; models on a SATA SSD volume (Samsung 860&nbsp;EVO M.2 + SanDisk) &mdash; SATA, not NVMe</li>
+<li><b>OS</b> &mdash; Windows Server 2025 (build 26100)</li>
+</ul>
+<span style="display:block;margin-top:.5em">In-VRAM throughput is GPU-memory-bandwidth bound, so bus&nbsp;/&nbsp;RAM&nbsp;/&nbsp;SSD speed barely move it &mdash; but they shape the offload and CPU results. <b>Running this yourself?</b> <code class="inl">scripts/make_submission.py</code> auto-captures <em>your</em> rig (CPU, RAM, GPU + PCIe link, board, storage) into the submission.</span></div>
   <p>One model (<code class="inl">Qwen2.5-Coder-7B-Instruct-Q4_K_M</code>), run at a large context (8192 tokens) with three KV-cache precisions: <b>f16</b> (full precision, baseline), <b>q8_0</b> (8-bit KV), and <b>q4_0</b> (4-bit KV). Per cache type we record <b>VRAM used</b> (nvidia-smi delta on load), <b>generation tok/s</b>, and <b>output similarity</b> — how close each config's greedy output stays to the f16 baseline over the shared 12-prompt suite (mean difflib ratio; 100% = no change).</p>
 
   <h2>Results</h2>

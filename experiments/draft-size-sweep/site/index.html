@@ -150,6 +150,16 @@
   </figure>
 
   <h2>The setup</h2>
+<div class="note" id="testrig"><b>Reference test rig.</b> Every &ldquo;reference&rdquo; number on this page was measured on one machine &mdash; an Alienware&nbsp;Aurora&nbsp;R7:
+<ul style="margin:.5em 0 0;padding-left:1.25em;line-height:1.55">
+<li><b>CPU</b> &mdash; Intel Core i7-8700 (6&nbsp;cores&nbsp;/&nbsp;12&nbsp;threads, Coffee&nbsp;Lake)</li>
+<li><b>Motherboard</b> &mdash; Alienware 0VDT73, Intel 300-series &mdash; <b>PCIe&nbsp;3.0</b> root complex</li>
+<li><b>RAM</b> &mdash; 64&nbsp;GB DDR4-2400 (4&nbsp;&times;&nbsp;16&nbsp;GB, dual-channel)</li>
+<li><b>GPU</b> &mdash; NVIDIA RTX&nbsp;5060&nbsp;Ti 16&nbsp;GB (Blackwell), running at <b>PCIe&nbsp;3.0&nbsp;&times;8</b><span> &middot; GTX&nbsp;1080&nbsp;Ti 11&nbsp;GB (Pascal) on the multi-GPU experiments</span></li>
+<li><b>Storage</b> &mdash; models on a SATA SSD volume (Samsung 860&nbsp;EVO M.2 + SanDisk) &mdash; SATA, not NVMe</li>
+<li><b>OS</b> &mdash; Windows Server 2025 (build 26100)</li>
+</ul>
+<span style="display:block;margin-top:.5em">In-VRAM throughput is GPU-memory-bandwidth bound, so bus&nbsp;/&nbsp;RAM&nbsp;/&nbsp;SSD speed barely move it &mdash; but they shape the offload and CPU results. <b>Running this yourself?</b> <code class="inl">scripts/make_submission.py</code> auto-captures <em>your</em> rig (CPU, RAM, GPU + PCIe link, board, storage) into the submission.</span></div>
   <p>Speculative decoding uses a cheap "draft" model to propose tokens that the full target model verifies in one batched pass. In <a href="../speculative-decoding/">experiment #1</a> we showed that draft overhead has to be amortized: the speedup only shows up when the acceptance rate is high enough to justify the extra draft cost. This experiment extends that thesis by asking — <em>how much does draft model size matter?</em></p>
   <p>The target is fixed: <b>Qwen2.5-Coder-14B-Instruct-Q4_K_M</b>, CUDA, GPU 0. We first measure a plain baseline (no speculation), then sweep three draft sizes: 0.5B (Q8_0), 1.5B (Q4_K_M), and 3B (Q4_K_M). All drafts use <code class="inl">--spec-type draft-simple --spec-draft-n-max 5 -ngld 999</code> — 5 tokens drafted per round, draft fully on GPU. Speedup is draft tok/s divided by baseline tok/s; above 1.0× means faster than no speculation.</p>
   <p>The prediction: a bigger draft accepts more tokens per round (higher acceptance rate) but also burns more VRAM and adds more latency per draft step. The sweet spot likely sits somewhere in the middle.</p>

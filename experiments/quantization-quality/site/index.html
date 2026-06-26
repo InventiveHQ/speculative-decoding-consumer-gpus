@@ -159,6 +159,16 @@
   <div class="note warn">The similarity score measures how much quantization <b>changed</b> the model's greedy token choices vs the Q8_0 reference — it is a drift proxy, not an absolute correctness guarantee. A 57%-similar model might still be perfectly adequate for your use case; a 90%-similar one might still get a critical answer wrong. Use it as a relative signal: a large drop tells you the quant is substantially altering outputs, not just slightly rounding them.</div>
 
   <h2>The setup</h2>
+<div class="note" id="testrig"><b>Reference test rig.</b> Every &ldquo;reference&rdquo; number on this page was measured on one machine &mdash; an Alienware&nbsp;Aurora&nbsp;R7:
+<ul style="margin:.5em 0 0;padding-left:1.25em;line-height:1.55">
+<li><b>CPU</b> &mdash; Intel Core i7-8700 (6&nbsp;cores&nbsp;/&nbsp;12&nbsp;threads, Coffee&nbsp;Lake)</li>
+<li><b>Motherboard</b> &mdash; Alienware 0VDT73, Intel 300-series &mdash; <b>PCIe&nbsp;3.0</b> root complex</li>
+<li><b>RAM</b> &mdash; 64&nbsp;GB DDR4-2400 (4&nbsp;&times;&nbsp;16&nbsp;GB, dual-channel)</li>
+<li><b>GPU</b> &mdash; NVIDIA RTX&nbsp;5060&nbsp;Ti 16&nbsp;GB (Blackwell), running at <b>PCIe&nbsp;3.0&nbsp;&times;8</b><span> &middot; GTX&nbsp;1080&nbsp;Ti 11&nbsp;GB (Pascal) on the multi-GPU experiments</span></li>
+<li><b>Storage</b> &mdash; models on a SATA SSD volume (Samsung 860&nbsp;EVO M.2 + SanDisk) &mdash; SATA, not NVMe</li>
+<li><b>OS</b> &mdash; Windows Server 2025 (build 26100)</li>
+</ul>
+<span style="display:block;margin-top:.5em">In-VRAM throughput is GPU-memory-bandwidth bound, so bus&nbsp;/&nbsp;RAM&nbsp;/&nbsp;SSD speed barely move it &mdash; but they shape the offload and CPU results. <b>Running this yourself?</b> <code class="inl">scripts/make_submission.py</code> auto-captures <em>your</em> rig (CPU, RAM, GPU + PCIe link, board, storage) into the submission.</span></div>
   <p>One model — <b>Qwen2.5-Coder-7B-Instruct</b> — run through each GGUF quant level from Q2_K up to Q8_0 on an <b>RTX&nbsp;5060&nbsp;Ti</b> (16&nbsp;GB, Blackwell) using llama.cpp's CUDA backend. Per quant we record generation speed, VRAM footprint, file size, and two quality signals: a graded <b>math pass-rate</b> over 8 multi-step problems with exact integer answers, and <b>output similarity</b> vs Q8_0 (mean difflib sequence-match ratio over the shared 12-prompt suite).</p>
   <table>
     <tr><th>Component</th><th>Detail</th></tr>
