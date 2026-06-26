@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local LLM Benchmarks — 11 findings from a $570 GPU — InventiveHQ</title>
+<meta name="description" content="Eleven reproducible experiments running local LLMs on a consumer RTX 5060 Ti (and a 2017 GTX 1080 Ti, and a CPU). The datacenter tricks, measured on hardware you can actually buy — including the times they backfire.">
+<style>
+  :root{
+    --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
+    --green:#76b900;--green-d:#5c9000;--teal:#1aa6a0;--red:#e3543b;--amber:#f0a23b;--slate:#8893a5;--blue:#5b8def;
+    --shadow:0 1px 0 rgba(19,22,27,.04),0 12px 30px -18px rgba(19,22,27,.30);
+    --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:0 22px}
+  h1{font-size:clamp(32px,5.4vw,54px);font-weight:800;letter-spacing:-.025em;line-height:1.08;margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3vw,30px);font-weight:800;letter-spacing:-.02em;margin:2.2em 0 .6em}
+  p{margin:.7em 0;color:var(--ink2);font-size:17px}
+  a{color:var(--green-d);text-decoration:none}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
+  header.hero{padding:66px 0 26px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  .lede{font-size:20px;color:var(--ink2);max-width:720px}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .rig{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 4px}
+  .chip{font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--bg2);color:var(--ink2)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:22px 0}
+  .card{display:block;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow);background:var(--bg);transition:border-color .15s, transform .15s}
+  .card:hover{border-color:var(--green);transform:translateY(-2px)}
+  .card .n{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  .card h3{font-size:18px;font-weight:800;letter-spacing:-.01em;margin:4px 0 6px;color:var(--ink)}
+  .card .stat{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--green-d);margin:2px 0 6px}
+  .card .stat.bad{color:var(--red)}
+  .card p{font-size:14.5px;margin:.3em 0 0;color:var(--ink2)}
+  .card .go{font-family:var(--mono);font-size:12px;color:var(--green-d);margin-top:10px;display:inline-block}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:14px 18px;border-radius:0 10px 10px 0;margin:20px 0;font-size:16px}
+  footer{margin:54px 0 44px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
+  .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="hero"><div class="wrap">
+  <span class="kicker">● InventiveHQ Lab · Local LLM Benchmarks</span>
+  <h1>11 findings from running local LLMs on a $570 GPU</h1>
+  <p class="lede">NVIDIA publishes its inference wins on 8× DGX B300s. Almost nobody has those. So we ran the same ideas — speculative decoding, quantization, offload, flash attention, power limits — on a single consumer <b>RTX&nbsp;5060&nbsp;Ti</b> (plus a 2017 <b>GTX&nbsp;1080&nbsp;Ti</b> and a CPU), and measured what actually happens. Every result below is reproducible, and several of these tricks <b>backfire</b> on consumer hardware — which is exactly the part the vendor blogs skip.</p>
+  <div class="rig">
+    <span class="chip">RTX 5060 Ti · Blackwell · 16 GB · ~$570</span>
+    <span class="chip">GTX 1080 Ti · Pascal · 2017</span>
+    <span class="chip">i7-8700 CPU</span>
+    <span class="chip">llama.cpp · Windows</span>
+  </div>
+  <div class="byline"><span>By <b>InventiveHQ</b></span><span>·</span><span>June 2026</span><span>·</span><span>11 experiments · all reproducible</span></div>
+</div></header>
+
+<main class="wrap">
+  <div class="note">Every speculative/quantized run's output was checked against its baseline, and every chart is built from measured data committed in this repo. Numbers are single-user (batch&nbsp;1) tokens/sec unless noted — the case a local user actually feels.</div>
+
+  <h2>The 11 experiments</h2>
+  <div class="grid">
+
+    <a class="card" href="experiments/speculative-decoding/site/index.html">
+      <div class="n">Experiment 01 · Speculative decoding</div>
+      <h3>NVIDIA's 15× trick, on a $570 GPU</h3>
+      <div class="stat">0.27× → 1.85×</div>
+      <p>Speculation has overhead: it <b>backfired</b> on the fast 7B (CUDA 0.27×) but paid off on a slow 14B (1.85× on math). And the right runtime flips by card — use Vulkan on Blackwell, CUDA on Pascal.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/runner-showdown/site/index.html">
+      <div class="n">Experiment 02 · Runner showdown</div>
+      <h3>Ollama vs llama.cpp vs LM Studio</h3>
+      <div class="stat">0.3% vs 10%</div>
+      <p>All three wrap llama.cpp, yet the convenience tax differs: <b>LM Studio is ~free (0.3%)</b> over raw llama.cpp, while <b>Ollama costs ~10%</b> throughput on the same model.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/quantization-quality/site/index.html">
+      <div class="n">Experiment 03 · GGUF quantization</div>
+      <h3>Where quality falls off a cliff</h3>
+      <div class="stat">cliff below Q4</div>
+      <p>Output fidelity vs Q8 drops 80% (Q6) → 57% (Q4) → 41% (Q3) → <b>21% (Q2)</b>. The knee is ~Q4–Q5: most of the size/speed savings, output still close to full precision.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/kv-cache-quant/site/index.html">
+      <div class="n">Experiment 04 · KV-cache quantization</div>
+      <h3>The q4_0 cache cliff</h3>
+      <div class="stat bad">8% similar</div>
+      <p>q8_0 KV cache is a fine space/quality trade, but <b>q4_0 KV wrecked the output</b> — only 8% similar to f16. The flag won't warn you; your text just quietly changes.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/vram-offload-cliff/site/index.html">
+      <div class="n">Experiment 05 · The VRAM cliff</div>
+      <h3>When your model doesn't fit</h3>
+      <div class="stat">2.9 → 43 tok/s</div>
+      <p>Sweeping a 14B's GPU layers: full-CPU is ~15× slower than full-GPU, and the climb is non-linear — <b>the last layers matter most</b>. Partial offload is a cliff, not a slope.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/context-length-tax/site/index.html">
+      <div class="n">Experiment 06 · Context-length tax</div>
+      <h3>What 2K→32K really costs</h3>
+      <div class="stat">+1.7 GB, ~0 speed</div>
+      <p>Declaring a big context isn't free — but the cost is <b>VRAM (+1.7 GB) and a little TTFT, not generation speed</b>, which stays flat at ~80 tok/s until you actually fill it.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/flash-attention/site/index.html">
+      <div class="n">Experiment 07 · Flash attention</div>
+      <h3>Is <code>-fa</code> actually free?</h3>
+      <div class="stat">a no-op</div>
+      <p>Toggling <code>-fa</code> changed <b>nothing</b> — identical tok/s and VRAM at every context length. The reason: it's already on by default in current llama.cpp. Don't cargo-cult the flag.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/tokens-per-watt/site/index.html">
+      <div class="n">Experiment 08 · Tokens per watt</div>
+      <h3>Cap the power, keep the speed</h3>
+      <div class="stat">−17% W, +16% eff</div>
+      <p>Capping the GPU from 180 W to its 150 W floor cost <b>~0 tok/s</b> (81→80) while improving efficiency ~16%. Decoding is bandwidth-bound, so the extra watts buy almost nothing.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/cpu-thread-scaling/site/index.html">
+      <div class="n">Experiment 09 · CPU thread scaling</div>
+      <h3>More threads made it slower</h3>
+      <div class="stat">peak at 6 cores</div>
+      <p>Throughput climbs to the 6 physical cores then plateaus — and <b>12 threads is slightly slower than 8</b>. The "use all logical cores" default is not optimal.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/draft-size-sweep/site/index.html">
+      <div class="n">Experiment 10 · Draft-model size</div>
+      <h3>Bigger draft = faster? No.</h3>
+      <div class="stat">0.5B wins (1.37×)</div>
+      <p>A bigger draft accepts far more (26% → 87%) but costs more per step. Net: the <b>smallest 0.5B draft wins</b> despite the lowest acceptance. There's a sweet spot, and it's small.</p>
+      <span class="go">Read →</span>
+    </a>
+
+    <a class="card" href="experiments/smallest-model-that-can-code/site/index.html">
+      <div class="n">Experiment 11 · Smallest model that reasons</div>
+      <h3>How small can you go?</h3>
+      <div class="stat">1 → 6 of 10</div>
+      <p>Graded reasoning pass-rate climbs with size (sub-3B basically can't), becoming useful only at 7B (4/10) and best at 14B (6/10) — while speed falls 381 → 43 tok/s.</p>
+      <span class="go">Read →</span>
+    </a>
+
+  </div>
+
+  <h2>The throughline</h2>
+  <p>Three things show up again and again. <b>One:</b> single-user decoding is <b>memory-bandwidth-bound</b>, which is why extra watts, extra threads, and bigger context buy little speed — and why an 8-year-old card isn't as far behind as its spec sheet suggests. <b>Two:</b> the datacenter tricks have <b>overhead</b> that only pays off in the right regime — speculation and big drafts help slow/large models, not fast small ones. <b>Three:</b> the convenient defaults (q4 KV, an aggressive quant, "all the threads", a heavier draft, the popular wrapper) are <b>often the wrong call</b>, and they fail quietly. Measure your own setup.</p>
+
+  <h2>Run it yourself</h2>
+  <p>Every experiment ships its harness, raw results, and writeup, and takes community submissions — run the same suite on your hardware and open a PR. See the <a href="https://github.com/InventiveHQ/local-llm-benchmarks">repo</a> and <a href="CONTRIBUTING.md">CONTRIBUTING</a>.</p>
+
+  <footer>
+    <p>InventiveHQ Lab · code <a href="LICENSE">MIT</a>, data &amp; writeups <a href="DATA-LICENSE.md">CC BY 4.0</a> · measured data, hand-authored SVG visuals, no stock images.</p>
+  </footer>
+</main>
+</body>
+</html>

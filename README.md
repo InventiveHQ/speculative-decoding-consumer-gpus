@@ -9,6 +9,8 @@ The throughline: vendor blogs benchmark on 8×H100s and report best-case numbers
 We run the same ideas on consumer GPUs and CPUs, and publish what actually happens
 — including the times it backfires.
 
+> 👉 **Start here:** [`index.html`](index.html) is the **findings roundup** — all 11 results on one page (open it locally, or it's the GitHub Pages landing page).
+
 ## Experiments
 
 | # | Experiment | The hook | Status |
