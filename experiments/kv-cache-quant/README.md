@@ -8,8 +8,6 @@ f16, q8_0, and q4_0 KV caches on the same model at 8192-token context. Smaller
 caches mean more context fits in the same VRAM — this measures exactly what you give
 up (if anything) in speed and output quality.
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 ## What it measures (per KV-cache type)
 
 - **VRAM footprint** — nvidia-smi used-memory delta on model load at 8192-token context.
@@ -42,7 +40,7 @@ delta is clean.
 ```
 scripts/  bench.py · aggregate.py · inject.py · make_submission.py
 results/  results.json + data.json + community/  (logs gitignored)
-site/     index.html — VRAM + speed + similarity charts (shows "results pending" until run)
+site/     index.html — VRAM + speed + similarity charts
 ```
 
 Built on [`harness/`](../../harness/) (`LlamaServer` + `measure` + shared `prompts.py`).

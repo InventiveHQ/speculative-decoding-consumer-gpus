@@ -19,8 +19,6 @@ We can't force Ollama/LM Studio onto a specific llama.cpp build — and that's t
 point: their bundled version + defaults *are* part of what you're measuring. We hold
 model + quant + prompts + sampling constant and report wall-clock tok/s.
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 ## What it measures
 
 Each runner serves the *identical* model + quant (Qwen2.5-Coder-7B, Q4) over its
@@ -66,7 +64,7 @@ finding, not a bug. Endpoints/model ids: edit `RUNNERS` in `scripts/bench.py`,
 ```
 scripts/   bench.py (harness-based) · aggregate.py · inject.py · make_submission.py
 results/   results.json + data.json + community/ submissions  (logs/screenshots gitignored)
-site/      index.html — the writeup (shows "results pending" until data lands)
+site/      index.html — the writeup
 ```
 
 Built on [`harness/`](../../harness/): `llama_client.py` (`chat`/`measure` against any

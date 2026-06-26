@@ -179,6 +179,13 @@ class LlamaServer:
                 self._log.close()
             except Exception:
                 pass
+        # Optional thermal cooldown between configs (laptops throttle under sustained
+        # load; a pause between server runs lets the chip recover so within-run
+        # comparisons stay valid). Set SPECBENCH_COOLDOWN=<seconds>; default 0 = off.
+        import os
+        cooldown = int(os.environ.get("SPECBENCH_COOLDOWN", "0"))
+        if cooldown > 0:
+            time.sleep(cooldown)
 
     def __enter__(self):
         return self.start()

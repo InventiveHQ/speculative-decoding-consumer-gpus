@@ -1,0 +1,153 @@
+{
+  "name": "apple-m3-max",
+  "notes": "Apple M3 Max (Metal), Qwen2.5-Coder-14B Q4_K_M target, 45s cooldown. Baseline (no draft) 27.1 tok/s. ALL draft sizes BACKFIRED: 0.5B 11.1 (0.41x, 32% accept), 1.5B 16.0 (0.59x, 38% accept), 3B 13.3 (0.49x, 45% accept). Opposite of the RTX 5060 Ti, where the 0.5B draft won at 1.37x. On Metal, speculative draft verification overhead exceeds the gain even on a slow 14B target (consistent with the speculative-decoding Metal community result). Acceptance still rises with draft size as on CUDA, but net speed never beats baseline. Use no draft (or n-gram) on Apple Silicon.",
+  "hardware": {
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "python": "3.13.4",
+    "cpu": "Apple M3 Max",
+    "gpus": []
+  },
+  "runs": {
+    "draftsweep": {
+      "meta": {
+        "target": "Qwen2.5-Coder-14B-Instruct",
+        "target_file": "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf",
+        "backend": "cuda",
+        "gpu": "RTX 5060 Ti (Blackwell, sm_120)",
+        "gpu_index": 0,
+        "max_tokens": 256,
+        "ctx": 4096,
+        "spec_type": "draft-simple",
+        "spec_draft_n_max": 5
+      },
+      "baseline_tps": 27.13,
+      "baseline_records": [
+        {
+          "id": "code_linkedlist",
+          "category": "code",
+          "tps": 27.6,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "code_lru",
+          "category": "code",
+          "tps": 27.76,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "code_sql",
+          "category": "code",
+          "tps": 27.69,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "math_gsm8k_1",
+          "category": "math",
+          "tps": 27.24,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "math_gsm8k_2",
+          "category": "math",
+          "tps": 27.31,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "math_algebra",
+          "category": "math",
+          "tps": 26.85,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "reason_puzzle",
+          "category": "reasoning",
+          "tps": 26.95,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "reason_plan",
+          "category": "reasoning",
+          "tps": 26.94,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "summ_transformer",
+          "category": "summarization",
+          "tps": 27.2,
+          "predicted_n": 159,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "summ_rewrite",
+          "category": "summarization",
+          "tps": 26.89,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "chat_advice",
+          "category": "chat",
+          "tps": 27.17,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        },
+        {
+          "id": "chat_explain",
+          "category": "chat",
+          "tps": 25.94,
+          "predicted_n": 256,
+          "draft_n": null,
+          "draft_n_accepted": null
+        }
+      ],
+      "drafts": [
+        {
+          "label": "0.5B",
+          "file": "Qwen2.5-Coder-0.5B-Instruct-Q8_0.gguf",
+          "file_mb": 531,
+          "tps": 11.13,
+          "speedup": 0.41,
+          "vram_mb": null,
+          "acceptance": 0.32371
+        },
+        {
+          "label": "1.5B",
+          "file": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
+          "file_mb": 986,
+          "tps": 16.01,
+          "speedup": 0.59,
+          "vram_mb": null,
+          "acceptance": 0.37472
+        },
+        {
+          "label": "3B",
+          "file": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+          "file_mb": 1930,
+          "tps": 13.27,
+          "speedup": 0.489,
+          "vram_mb": null,
+          "acceptance": 0.45361
+        }
+      ]
+    }
+  }
+}

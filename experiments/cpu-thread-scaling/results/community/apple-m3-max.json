@@ -1,0 +1,48 @@
+{
+  "name": "apple-m3-max",
+  "notes": "Apple M3 Max CPU-only (-ngl 0 --device none), Qwen2.5-Coder-3B Q4_K_M, 45s cooldown. Threads->tok/s: 1=10.5, 2=19.7, 4=33.5, 6=42.4, 8=46.8, 12=29.2. Peaks at 8 threads, then 12 threads COLLAPSES to 29.2 (worse than 6). Apple Silicon P/E-core asymmetry (M3 Max = 10 performance + 4 efficiency cores): oversubscribing onto efficiency cores tanks throughput. Sweet spot ~8 threads; never use all 14 logical cores. Sharper penalty than the desktop i7-8700's mild 12-vs-8 dip.",
+  "hardware": {
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "python": "3.13.4",
+    "cpu": "Apple M3 Max",
+    "gpus": []
+  },
+  "runs": {
+    "threads": {
+      "meta": {
+        "model": "Qwen2.5-Coder-3B-Instruct",
+        "cpu_name": "Apple M3 Max",
+        "logical_cores": 14,
+        "physical_cores": 14,
+        "max_tokens": 256,
+        "ctx": 4096
+      },
+      "points": [
+        {
+          "threads": 1,
+          "tps": 10.51
+        },
+        {
+          "threads": 2,
+          "tps": 19.67
+        },
+        {
+          "threads": 4,
+          "tps": 33.45
+        },
+        {
+          "threads": 6,
+          "tps": 42.42
+        },
+        {
+          "threads": 8,
+          "tps": 46.8
+        },
+        {
+          "threads": 12,
+          "tps": 29.22
+        }
+      ]
+    }
+  }
+}

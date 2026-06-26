@@ -7,8 +7,6 @@
 cores can halve your tok/s. This sweeps thread counts from 1 → 16 and shows exactly
 where the hyperthreading penalty kicks in.
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 ## What it measures
 
 - **Tok/s per thread count** — 1, 2, 4, 6, 8, 12, 16 (capped at logical core count).
@@ -43,7 +41,7 @@ python scripts/make_submission.py --name "my-cpu-label"
 ```
 scripts/  bench.py · aggregate.py · inject.py · make_submission.py
 results/  results.json + data.json + community/  (logs gitignored)
-site/     index.html — line chart tok/s vs threads (shows "results pending" until run)
+site/     index.html — line chart tok/s vs threads
 ```
 
 Built on [`harness/`](../../harness/) (`LlamaServer` + `run_suite` + shared `prompts.py`).

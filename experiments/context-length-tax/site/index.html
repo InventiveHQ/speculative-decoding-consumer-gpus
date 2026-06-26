@@ -302,7 +302,7 @@ function renderResults(){
   const topVram=Math.max(...pts.filter(p=>p.vram_mb!=null).map(p=>p.vram_mb));
   const botVram=Math.min(...pts.filter(p=>p.vram_mb!=null).map(p=>p.vram_mb));
   const vramExtra=topVram&&botVram?(topVram-botVram):null;
-  const summary=pctDrop!=null?`<p>Going from 2K to 32K context drops generation speed by ~<b>${pctDrop}%</b>${vramExtra!=null?' and adds ~<b>'+vramExtra+' MiB</b> of VRAM':''} — even with identical prompts. That's the tax.</p>`:'';
+  const summary=pctDrop!=null?`<p>Going from 2K to 32K context leaves generation speed essentially flat (within ~<b>${pctDrop}%</b>, run-to-run noise)${vramExtra!=null?' but adds ~<b>'+vramExtra+' MiB</b> of VRAM':''} — even with identical prompts. The tax is memory, not speed.</p>`:'';
   host.innerHTML=`
     ${summary}
     <div class="chartcard">

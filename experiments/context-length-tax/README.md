@@ -8,8 +8,6 @@ This sweep fixes one model and quant (Qwen2.5-Coder-7B-Instruct Q4_K_M) and vari
 only the context-window setting from 2 048 → 32 768 tokens, measuring the speed,
 memory, and latency penalty at each level.
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 ## What it measures (per context size)
 
 - **Speed** — generation tok/s on the shared 12-prompt suite.
@@ -45,7 +43,7 @@ idle GPU so the VRAM delta is clean.
 ```
 scripts/  bench.py · aggregate.py · inject.py · make_submission.py
 results/  results.json + data.json + community/  (logs gitignored)
-site/     index.html — tok/s + VRAM + TTFT charts (shows "results pending" until run)
+site/     index.html — tok/s + VRAM + TTFT charts
 ```
 
 Built on [`harness/`](../../harness/) (`LlamaServer` + `measure` + shared `prompts.py`).

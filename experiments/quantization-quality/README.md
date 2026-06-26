@@ -7,8 +7,6 @@
 and VRAM — but somewhere down there, quality falls off a cliff. This sweeps Q2_K →
 Q8_0 on one model and measures exactly where.
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 ## What it measures (per quant)
 
 - **Speed** — generation tok/s on the shared 12-prompt suite.
@@ -45,7 +43,7 @@ clean.
 ```
 scripts/  bench.py · aggregate.py · inject.py · make_submission.py · quality_set.py (graded math)
 results/  results.json + data.json + community/  (logs/screenshots gitignored)
-site/     index.html — quality-vs-quant + speed charts (shows "results pending" until run)
+site/     index.html — quality-vs-quant + speed charts
 ```
 
 Built on [`harness/`](../../harness/) (`LlamaServer` + `measure` + shared `prompts.py`).

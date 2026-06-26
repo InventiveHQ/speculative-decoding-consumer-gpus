@@ -7,8 +7,6 @@
 (GPU-offloaded layers) from 0 (all CPU) to 99 (all GPU) on a fixed model and quant,
 measuring tok/s and VRAM at every step to find exactly where the cliff is.
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 ## What it measures
 
 - **Speed** — generation tok/s on the shared 12-prompt suite, per `-ngl` setting.
@@ -36,7 +34,7 @@ Override the default model via `SPECBENCH_MODEL_BASE`; override the exe via
 ```
 scripts/  bench.py · aggregate.py · inject.py · make_submission.py
 results/  results.json + data.json + community/  (logs gitignored)
-site/     index.html — tok/s vs ngl + VRAM vs ngl (shows "results pending" until run)
+site/     index.html — tok/s vs ngl + VRAM vs ngl
 ```
 
 Built on [`harness/`](../../harness/) (`LlamaServer` + `run_suite` + shared `prompts.py`).

@@ -1,0 +1,64 @@
+{
+  "name": "apple-m3-max",
+  "notes": "Apple M3 Max (Metal), Qwen2.5-Coder-7B Q4_K_M, 45s cooldown. -fa on vs off is a no-op on Metal too: 4K 51.1/51.0, 16K 52.1/52.6, 32K 53.0/52.9 tok/s (on/off within run-to-run noise). Flash attention is effectively always-on/free on current llama.cpp; the explicit flag changes nothing. Don't cargo-cult -fa.",
+  "hardware": {
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "python": "3.13.4",
+    "cpu": "Apple M3 Max",
+    "gpus": []
+  },
+  "runs": {
+    "flashattn": {
+      "meta": {
+        "model": "Qwen2.5-Coder-7B-Instruct",
+        "quant": "Q4_K_M",
+        "backend": "cuda",
+        "gpu": 0,
+        "max_tokens": 256,
+        "contexts": [
+          4096,
+          16384,
+          32768
+        ]
+      },
+      "points": [
+        {
+          "ctx": 4096,
+          "fa": false,
+          "tps": 51.1,
+          "vram_mb": null
+        },
+        {
+          "ctx": 4096,
+          "fa": true,
+          "tps": 50.97,
+          "vram_mb": null
+        },
+        {
+          "ctx": 16384,
+          "fa": false,
+          "tps": 52.08,
+          "vram_mb": null
+        },
+        {
+          "ctx": 16384,
+          "fa": true,
+          "tps": 52.57,
+          "vram_mb": null
+        },
+        {
+          "ctx": 32768,
+          "fa": false,
+          "tps": 53.0,
+          "vram_mb": null
+        },
+        {
+          "ctx": 32768,
+          "fa": true,
+          "tps": 52.92,
+          "vram_mb": null
+        }
+      ]
+    }
+  }
+}

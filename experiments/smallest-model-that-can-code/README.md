@@ -8,8 +8,6 @@
 Qwen2.5-Coder-Instruct from 0.5B to 14B parameters to find the knee: the smallest
 model that reliably passes, traded against speed and size.
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 ## What it measures (per model size)
 
 - **Speed** — generation tok/s on the shared 12-prompt suite.
@@ -51,7 +49,7 @@ Best on an otherwise-idle GPU so the VRAM delta is clean.
 ```
 scripts/  bench.py · aggregate.py · inject.py · make_submission.py · quality_set.py (graded set)
 results/  results.json + data.json + community/  (logs gitignored)
-site/     index.html — pass-rate + tok/s charts (shows "results pending" until run)
+site/     index.html — pass-rate + tok/s charts
 ```
 
 Built on [`harness/`](../../harness/) (`LlamaServer` + `measure` + shared `prompts.py`).

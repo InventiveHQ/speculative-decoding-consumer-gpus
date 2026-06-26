@@ -8,8 +8,6 @@ is memory-bandwidth-bound, not compute-bound. That means cutting the GPU's power
 limit often costs almost nothing in tok/s while shrinking heat, noise, and electricity
 draw. This experiment measures exactly where the trade-off lives.
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 > **Hardware notice:** `bench.py` modifies GPU power limits via `nvidia-smi -pl`.
 > This requires **administrator/elevated privileges** (Windows: run from an Admin
 > prompt; Linux: run with sudo). The script always restores the original power limit
@@ -50,7 +48,7 @@ Download it from e.g. [bartowski's Qwen2.5-Coder-7B-Instruct GGUF](https://huggi
 ```
 scripts/  bench.py · aggregate.py · inject.py · make_submission.py
 results/  results.json + data.json + community/  (logs gitignored)
-site/     index.html — tok/s + tok/s/W charts (shows "results pending" until run)
+site/     index.html — tok/s + tok/s/W charts
 ```
 
 Built on [`harness/`](../../harness/) (`LlamaServer` + `measure` + shared `prompts.py`).

@@ -9,8 +9,6 @@ on context length and hardware. This experiment sweeps `4096 / 16384 / 32768` co
 lengths with flash-attention off and on, measures generation tok/s and VRAM used, and
 shows exactly where -fa helps vs where it's a wash.
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 ## What it measures (per context × fa cell)
 
 - **Speed** — mean generation tok/s on the shared 12-prompt suite.
@@ -52,7 +50,7 @@ Run on an otherwise-idle GPU so the VRAM delta is clean.
 ```
 scripts/  bench.py · aggregate.py · inject.py · make_submission.py
 results/  results.json + data.json + community/  (logs gitignored)
-site/     index.html — grouped bar charts: tok/s + VRAM saved (shows pending until run)
+site/     index.html — grouped bar charts: tok/s + VRAM saved
 ```
 
 Built on [`harness/`](../../harness/) (`LlamaServer` + `measure` + shared `prompts.py`).

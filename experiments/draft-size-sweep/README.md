@@ -9,8 +9,6 @@ accepts more tokens per round — but costs more per draft step. There is a swee
 This sweep holds the target fixed and measures actual speedup for three draft sizes
 (0.5B, 1.5B, 3B) to find it. Sequel to [experiment #1](../speculative-decoding/).
 
-Status: **scaffolded, results pending** (waiting on a hardware run).
-
 ## What it measures (per draft size)
 
 - **Speedup** — draft tok/s / baseline tok/s (above 1.0× = faster than no speculation).
@@ -50,7 +48,7 @@ python scripts/bench.py
 ```
 scripts/  bench.py · aggregate.py · inject.py · make_submission.py
 results/  results.json + data.json + community/  (logs gitignored)
-site/     index.html — speedup chart + raw tok/s (shows "results pending" until run)
+site/     index.html — speedup chart + raw tok/s
 ```
 
 Built on [`harness/`](../../harness/) (`LlamaServer` + `run_suite` + shared `prompts.py`).
