@@ -9,7 +9,7 @@ The throughline: vendor blogs benchmark on 8×H100s and report best-case numbers
 We run the same ideas on consumer GPUs and CPUs, and publish what actually happens
 — including the times it backfires.
 
-> 👉 **Start here:** [`index.html`](index.html) is the **findings roundup** — all 11 results on one page (open it locally, or it's the GitHub Pages landing page).
+> 👉 **Start here:** [`index.html`](index.html) is the **findings roundup** — all 12 results on one page (open it locally, or it's the GitHub Pages landing page).
 
 ## Experiments
 
@@ -26,6 +26,7 @@ We run the same ideas on consumer GPUs and CPUs, and publish what actually happe
 | 9 | [CPU thread scaling](experiments/cpu-thread-scaling/) | Peaks near the **6 physical cores**; 12 threads slightly slower than 8 | ✅ Results (i7-8700) |
 | 10 | [Draft-model size sweep](experiments/draft-size-sweep/) | **0.5B draft wins (1.37×)** despite lowest acceptance — bigger ≠ faster | ✅ Results (RTX 5060 Ti) |
 | 11 | [Smallest model that can code](experiments/smallest-model-that-can-code/) | Graded pass-rate **1→6 of 10** from 0.5B→14B — need ≥7B to reason | ✅ Results (RTX 5060 Ti) |
+| 12 | [MoE on CPU](experiments/moe-on-cpu/) | A **30B-A3B MoE runs at 3B-dense speed** on an i7-8700 (10.6 tok/s, 9.2× faster than a dense 30B) — and scores **8/10 vs the 3B's 1/10** | ✅ Results (i7-8700 CPU) |
 
 ## Repo layout
 

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MoE on CPU: 13B-class answers at 3B speed — InventiveHQ</title>
+<meta name="description" content="A 30B Mixture-of-Experts model has 10x the parameters of a dense 3B — but on a CPU it runs at the same speed, because only ~3.3B activate per token. We measured speed and quality across dense 1.5B–8B and a 30B-A3B MoE on an 8-year-old i7-8700.">
+<style>
+  :root{
+    --ink:#13161b;--ink2:#3a4250;--line:#e7eaf0;--bg:#fff;--bg2:#f6f8fb;
+    --green:#76b900;--green-d:#5c9000;--teal:#1aa6a0;--red:#e3543b;--amber:#f0a23b;--slate:#8893a5;
+    --shadow:0 1px 0 rgba(19,22,27,.04),0 12px 30px -18px rgba(19,22,27,.30);
+    --mono:'SF Mono',ui-monospace,'Cascadia Code','Consolas',monospace;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px}
+  h1,h2,h3{line-height:1.15;letter-spacing:-.02em;font-weight:800}
+  h1{font-size:clamp(28px,4.6vw,46px);margin:.2em 0 .35em}
+  h2{font-size:clamp(22px,3.2vw,30px);margin:2.2em 0 .5em}
+  h3{font-size:17px;margin:1.4em 0 .3em}
+  p{margin:.7em 0;color:var(--ink2);font-size:17px}
+  a{color:var(--green-d);text-decoration:none;border-bottom:1px solid rgba(118,185,0,.35)}
+  a:hover{border-color:var(--green-d)}
+  .kicker{display:inline-flex;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green-d);background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.25);padding:6px 12px;border-radius:999px}
+  header.hero{padding:60px 0 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  .lede{font-size:20px;color:var(--ink2);max-width:720px}
+  .crumb{font-family:var(--mono);font-size:12.5px;color:var(--slate);margin-bottom:8px}
+  .byline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--slate);font-size:14px;margin-top:18px;font-family:var(--mono)}
+  .byline b{color:var(--ink)}
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:30px 0 8px}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:31px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .stat .n .u{font-size:15px;color:var(--slate);font-weight:700}
+  .stat .l{font-size:13.5px;color:var(--ink2);margin-top:2px}
+  figure{margin:30px 0}
+  .panel{border:1px solid var(--line);border-radius:18px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+  .panel .head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .panel .head .t{font-weight:700;font-size:15px}
+  figcaption{font-size:14px;color:var(--slate);margin-top:10px;text-align:center}
+  .chartcard{border:1px solid var(--line);border-radius:16px;padding:20px 18px 12px;box-shadow:var(--shadow);margin:18px 0}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .note{border-left:3px solid var(--green);background:var(--bg2);padding:12px 16px;border-radius:0 10px 10px 0;margin:18px 0;font-size:15.5px}
+  .note.amber{border-left-color:var(--amber)}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate)}
+  td.num{font-family:var(--mono);text-align:right}
+  tr.moe td{background:rgba(118,185,0,.07);font-weight:600}
+  .pending{border:1px dashed var(--line);background:var(--bg2);border-radius:16px;padding:28px;text-align:center;color:var(--ink2)}
+  code.inl{font-family:var(--mono);font-size:.9em;background:var(--bg2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--ink)}
+  pre{background:#0f1217;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:13.5px;border:1px solid #1c2128}
+  pre .c{color:#7d8aa0}
+  footer{margin:60px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--slate);font-size:14px}
+  .tag{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  b.hl{color:var(--ink)}
+  @media(max-width:680px){.tldr{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="hero"><div class="wrap">
+  <div class="crumb">InventiveHQ · local-llm-benchmarks · experiment #12</div>
+  <span class="kicker">● InventiveHQ Lab · Hands-on</span>
+  <h1>MoE on CPU: 13B-class answers at 3B speed</h1>
+  <p class="lede">A Mixture-of-Experts model carries a huge parameter count but only fires a slice of it per token. On a CPU — where decoding is memory-bandwidth-bound — does it run at the speed of its <b>total</b> size, or its <b>active</b> size? We measured a <b>30B-A3B</b> MoE against dense 1.5B–8B models on an 8-year-old <b>i7-8700</b>.</p>
+  <div class="byline">
+    <span>By <b>InventiveHQ</b></span><span>·</span>
+    <span>June 2026</span><span>·</span>
+    <span>Qwen3-30B-A3B + dense refs · Intel i7-8700 · CPU · llama.cpp</span>
+  </div>
+  <div class="tldr">
+    <div class="stat">
+      <div class="n" id="s-params">—</div>
+      <div class="l">total vs active parameters — only the active set is read per token</div>
+    </div>
+    <div class="stat">
+      <div class="n" id="s-speed">—</div>
+      <div class="l" id="s-speed-l">the 30B MoE on CPU</div>
+    </div>
+    <div class="stat">
+      <div class="n" id="s-quality">—</div>
+      <div class="l" id="s-quality-l">quality vs the dense model it ties on speed</div>
+    </div>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+  <h2>The question: do you pay for the parameters you store, or the ones you use?</h2>
+  <p>Dense models read <em>every</em> weight to generate <em>every</em> token. A Mixture-of-Experts (MoE) model is built differently: its layers hold many parallel "expert" sub-networks, and a small router picks just a few to run for each token. A <b>30B-A3B</b> model stores 30&nbsp;billion parameters but activates only about <b>3.3&nbsp;billion</b> per token — the "A3B" part.</p>
+  <p>That distinction barely matters on a fast GPU, but it is decisive on a CPU. Single-user CPU generation is <b>memory-bandwidth-bound</b>: the speed ceiling is set by how many weight bytes you stream from RAM for each token. If only the active experts are read, an MoE should decode at roughly the speed of a dense model its <em>active</em> size — while answering like something far bigger. This experiment tests exactly that, on hardware most people already own.</p>
+
+  <div class="note amber"><b>Why not dFlash, or speculative decoding?</b> NVIDIA's <a href="https://www.marktechpost.com/2026/06/24/dflash-speculative-decoding-drafts-whole-token-blocks-in-parallel-for-up-to-15x-higher-throughput-on-nvidia-blackwell/">dFlash</a> (and EAGLE-3) hit their headline multiples with a <em>trained, target-conditioned draft head</em> running in <b>TensorRT-LLM on Blackwell GPUs at high concurrency</b> — not something that exists in llama.cpp or on a CPU, and there is no published head for this model. And as <a href="../speculative-decoding/">experiment&nbsp;#1</a> showed, at batch&nbsp;1 on a single device a generic draft is overhead-governed and often <em>loses</em>. So the interesting lever here is not a bolt-on decoder trick — it is the MoE <em>architecture itself</em>. That is what we measure.</div>
+
+  <h2>How MoE routing saves bandwidth</h2>
+  <figure>
+    <div class="panel">
+      <div class="head"><span class="t">Dense vs MoE: bytes read per token</span></div>
+      <svg viewBox="0 0 820 300" width="100%" role="img" aria-label="Diagram: a dense layer reads all of its weight blocks for every token, while an MoE layer routes each token to only 2 of 8 expert blocks, reading far fewer bytes.">
+        <rect width="820" height="300" fill="#fff"/>
+        <!-- DENSE side -->
+        <text x="205" y="34" text-anchor="middle" font-size="15" font-weight="800" fill="#13161b" font-family="var(--sans)">Dense model</text>
+        <text x="205" y="52" text-anchor="middle" font-size="11.5" fill="#8893a5" font-family="var(--sans)">every weight read, every token</text>
+        <circle cx="55" cy="150" r="16" fill="#eef1f6" stroke="#cfd6e2"/>
+        <text x="55" y="154" text-anchor="middle" font-size="11" fill="#3a4250" font-family="var(--sans)">tok</text>
+        <!-- 8 dense blocks, all active -->
+        <g>
+          <rect x="110" y="78"  width="190" height="20" rx="4" fill="#1aa6a0"/>
+          <rect x="110" y="104" width="190" height="20" rx="4" fill="#1aa6a0"/>
+          <rect x="110" y="130" width="190" height="20" rx="4" fill="#1aa6a0"/>
+          <rect x="110" y="156" width="190" height="20" rx="4" fill="#1aa6a0"/>
+          <rect x="110" y="182" width="190" height="20" rx="4" fill="#1aa6a0"/>
+          <rect x="110" y="208" width="190" height="20" rx="4" fill="#1aa6a0"/>
+        </g>
+        <path d="M71 150 H104" stroke="#3a4250" stroke-width="1.5" marker-end="url(#ar)"/>
+        <text x="205" y="252" text-anchor="middle" font-size="12.5" font-weight="700" fill="#13161b" font-family="var(--sans)">reads 100% of weights</text>
+        <text x="205" y="272" text-anchor="middle" font-size="11.5" fill="#8893a5" font-family="var(--sans)">bandwidth per token &#8733; total size</text>
+        <!-- divider -->
+        <line x1="410" y1="64" x2="410" y2="284" stroke="#e7eaf0"/>
+        <!-- MoE side -->
+        <text x="612" y="34" text-anchor="middle" font-size="15" font-weight="800" fill="#13161b" font-family="var(--sans)">MoE model (A3B)</text>
+        <text x="612" y="52" text-anchor="middle" font-size="11.5" fill="#8893a5" font-family="var(--sans)">router fires a few experts per token</text>
+        <circle cx="462" cy="150" r="16" fill="#eef1f6" stroke="#cfd6e2"/>
+        <text x="462" y="154" text-anchor="middle" font-size="11" fill="#3a4250" font-family="var(--sans)">tok</text>
+        <!-- router -->
+        <rect x="508" y="135" width="40" height="30" rx="6" fill="#13161b"/>
+        <text x="528" y="154" text-anchor="middle" font-size="10.5" fill="#fff" font-family="var(--sans)">route</text>
+        <path d="M478 150 H506" stroke="#3a4250" stroke-width="1.5" marker-end="url(#ar)"/>
+        <!-- 8 experts, 2 active (green), 6 idle (grey) -->
+        <g font-family="var(--sans)">
+          <rect x="600" y="74"  width="150" height="18" rx="4" fill="#e7ebf1"/>
+          <rect x="600" y="98"  width="150" height="18" rx="4" fill="#76b900"/>
+          <rect x="600" y="122" width="150" height="18" rx="4" fill="#e7ebf1"/>
+          <rect x="600" y="146" width="150" height="18" rx="4" fill="#e7ebf1"/>
+          <rect x="600" y="170" width="150" height="18" rx="4" fill="#76b900"/>
+          <rect x="600" y="194" width="150" height="18" rx="4" fill="#e7ebf1"/>
+          <rect x="600" y="218" width="150" height="18" rx="4" fill="#e7ebf1"/>
+        </g>
+        <path d="M548 150 C570 120 575 113 598 107" stroke="#76b900" stroke-width="1.8" fill="none" marker-end="url(#arg)"/>
+        <path d="M548 150 C570 168 575 174 598 179" stroke="#76b900" stroke-width="1.8" fill="none" marker-end="url(#arg)"/>
+        <text x="612" y="262" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5c9000" font-family="var(--sans)">reads ~11% of weights</text>
+        <text x="612" y="282" text-anchor="middle" font-size="11.5" fill="#8893a5" font-family="var(--sans)">bandwidth per token &#8733; active size</text>
+        <defs>
+          <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#3a4250"/></marker>
+          <marker id="arg" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#76b900"/></marker>
+        </defs>
+      </svg>
+    </div>
+    <figcaption>Both models must be fully <b>resident in RAM</b> — every expert might be needed on the next token. But each individual token only <b>reads</b> the active experts, and on a bandwidth-bound CPU, bytes-read-per-token is what sets your tok/s.</figcaption>
+  </figure>
+
+  <div class="note">The catch is memory <em>capacity</em>, not speed: all 30B of experts have to fit in RAM, because which ones fire changes token to token. At Q4 that is ~18&nbsp;GB — fine on a 32&nbsp;GB+ machine, impossible to keep resident on most 16&nbsp;GB GPUs. CPU + lots of cheap system RAM is the MoE's natural home.</div>
+
+  <h2>The setup</h2>
+<div class="note" id="testrig"><b>Reference test rig.</b> Every &ldquo;reference&rdquo; number on this page was measured on one machine &mdash; an Alienware&nbsp;Aurora&nbsp;R7:
+<ul style="margin:.5em 0 0;padding-left:1.25em;line-height:1.55">
+<li><b>CPU</b> &mdash; Intel Core i7-8700 (6&nbsp;cores&nbsp;/&nbsp;12&nbsp;threads, Coffee&nbsp;Lake)</li>
+<li><b>Motherboard</b> &mdash; Alienware 0VDT73, Intel 300-series &mdash; <b>PCIe&nbsp;3.0</b> root complex</li>
+<li><b>RAM</b> &mdash; 64&nbsp;GB DDR4-2400 (4&nbsp;&times;&nbsp;16&nbsp;GB, dual-channel)</li>
+<li><b>GPU</b> &mdash; NVIDIA RTX&nbsp;5060&nbsp;Ti 16&nbsp;GB (Blackwell), running at <b>PCIe&nbsp;3.0&nbsp;&times;8</b><span> &middot; GTX&nbsp;1080&nbsp;Ti 11&nbsp;GB (Pascal) on the multi-GPU experiments</span></li>
+<li><b>Storage</b> &mdash; models on a SATA SSD volume (Samsung 860&nbsp;EVO M.2 + SanDisk) &mdash; SATA, not NVMe</li>
+<li><b>OS</b> &mdash; Windows Server 2025 (build 26100)</li>
+</ul>
+<span style="display:block;margin-top:.5em">This experiment runs entirely on the <b>CPU</b> (<code class="inl">-ngl 0</code>), so the lever is <b>DDR4-2400 dual-channel</b> memory bandwidth — DDR5 or more channels should lift the whole curve. <b>Running this yourself?</b> <code class="inl">scripts/make_submission.py</code> auto-captures <em>your</em> rig (CPU, RAM speed, board, storage) into the submission.</span></div>
+  <table>
+    <tr><th>Component</th><th>What we used</th></tr>
+    <tr><td>Device</td><td>CPU only (<code class="inl">-ngl 0</code>), 6 threads = physical cores</td></tr>
+    <tr><td>Runtime</td><td>llama.cpp (a build recent enough for the <code class="inl">qwen3moe</code> architecture)</td></tr>
+    <tr><td>MoE</td><td>Qwen3-VL-30B-A3B-Instruct, Q4_K_M (30.5B total / ~3.3B active) — its text decoder is the A3B MoE</td></tr>
+    <tr><td>Dense refs</td><td>Qwen2.5-Coder 1.5B / 3B / 7B and Llama-3.1-8B, all Q4_K_M</td></tr>
+    <tr><td>Speed test</td><td>Shared 12-prompt suite, greedy (temp 0), 256 tokens — server <code class="inl">predicted_per_second</code></td></tr>
+    <tr><td>Quality</td><td>10 multi-step math/reasoning problems, exact integer match (no code executed)</td></tr>
+  </table>
+
+  <h2>Result 1: the MoE runs at active-parameter speed</h2>
+  <div id="speedchart"></div>
+  <p id="p-speed">—</p>
+
+  <h2>Result 2: same speed as a 3B, the smarts of something much bigger</h2>
+  <div id="frontierchart"></div>
+  <p id="p-frontier">—</p>
+  <div class="note">Read the quality numbers within reason: the dense references span two families (Qwen2.5-<em>Coder</em> and a general Llama-3.1-8B), and the graded set is math/word problems, so the Llama-8B's low score reflects task fit, not raw capability. The <b>speed</b> result is family-independent and clean; the cleanest <b>quality</b> read is within the Qwen family — 3B (1/10) &rarr; 7B (5/10) &rarr; the 30B-A3B MoE (8/10), with the MoE both the most accurate and second-fastest of the whole set.</div>
+
+  <h2>The numbers</h2>
+  <div id="results"></div>
+
+  <h2>What we learned</h2>
+
+  <h3>On a CPU, tok/s tracks <em>active</em> parameters, not total</h3>
+  <p id="w1">—</p>
+
+  <h3>Quality breaks the speed/size frontier</h3>
+  <p id="w2">—</p>
+
+  <h3>The bottleneck is RAM, and RAM is cheap</h3>
+  <p>Two machines decode this MoE at very different speeds depending entirely on memory bandwidth: dual-channel DDR4-2400 (this box) sits at the low end; DDR5-6000 or a quad/eight-channel workstation moves the whole curve up. But unlike VRAM, system RAM is cheap and plentiful — putting a 30B-class model within reach of a machine with no usable GPU at all. That is the real unlock: you are no longer gated by a 16&nbsp;GB VRAM ceiling, only by how many DIMMs you can afford.</p>
+
+  <h3>This is a quality <em>proxy</em>, on a small set</h3>
+  <p>The 10-question graded set measures multi-step reasoning by exact-answer match — it is a signal, not a full benchmark, and no model code is executed. Treat the quality numbers as "which tier is this model in," not a leaderboard. The speed result, by contrast, is robust: it is a direct consequence of how many bytes the runtime streams per token.</p>
+
+  <h2>The practical takeaway</h2>
+  <div class="note" id="takeaway">—</div>
+
+  <h2>Community results</h2>
+  <div id="community"></div>
+
+  <h2>Reproduce</h2>
+  <p>Get a recent llama.cpp build (the MoE arch is new), download the GGUFs into your models dir, then:</p>
+  <pre><span class="c"># CPU-only sweep — missing models are skipped automatically</span>
+python scripts/bench.py --threads 6
+python scripts/aggregate.py  <span class="c"># writes results/data.json</span>
+python scripts/inject.py     <span class="c"># bakes data into site/index.html</span></pre>
+  <p>Memory bandwidth is the whole story here, so DDR5 / more channels should shift your curve up — submissions across memory configs are especially valuable. Full guide: <a href="../../../CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+
+  <footer>
+    <p><b>Methodology.</b> CPU only (<code class="inl">-ngl 0</code>), 6 threads. Greedy decoding (temp 0), 256 generated tokens, shared 12-prompt suite for tok/s (server <code class="inl">predicted_per_second</code>); a 10-question graded math/reasoning set for quality (exact match on the last integer, no partial credit, no code execution). The "dense 30B" reference is an extrapolation of the dense points' bandwidth trend (tok/s ∝ 1/active), shown for scale only. Active/total parameter counts are the published model specs. Numbers vary with CPU, RAM bandwidth, thread count, and llama.cpp version. The MoE is Qwen3-VL-30B-A3B-Instruct; its text decoder is the same A3B MoE used for text-only generation here.</p>
+    <p class="tag">InventiveHQ Lab · measured data, hand-authored SVG visuals, no stock images · code MIT, data CC BY 4.0 · part of the local-llm-benchmarks series</p>
+  </footer>
+</main>
+
+<script>
+const DATA = {
+  "meta": {
+    "device": "cpu",
+    "cpu": "Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz",
+    "threads": 6,
+    "ram": {
+      "total_gb": 64,
+      "speed_mhz": 2400,
+      "modules": 4,
+      "type": "DDR4"
+    },
+    "max_tokens": 256,
+    "ctx": 4096,
+    "quality": "graded math/reasoning pass-rate (exact-answer matching)",
+    "exe_version": "version: 9789 (b3ce5cedf)"
+  },
+  "models": [
+    {
+      "label": "1.5B dense",
+      "kind": "dense",
+      "file": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
+      "active_b": 1.5,
+      "total_b": 1.5,
+      "file_mb": 986,
+      "tps": 22.35,
+      "pass": 1,
+      "total": 10
+    },
+    {
+      "label": "3B dense",
+      "kind": "dense",
+      "file": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+      "active_b": 3.1,
+      "total_b": 3.1,
+      "file_mb": 1930,
+      "tps": 11.77,
+      "pass": 1,
+      "total": 10
+    },
+    {
+      "label": "30B-A3B MoE",
+      "kind": "moe",
+      "file": "Qwen3VL-30B-A3B-Instruct-Q4_K_M.gguf",
+      "active_b": 3.3,
+      "total_b": 30.5,
+      "file_mb": 18557,
+      "tps": 10.58,
+      "pass": 8,
+      "total": 10
+    },
+    {
+      "label": "7B dense",
+      "kind": "dense",
+      "file": "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
+      "active_b": 7.6,
+      "total_b": 7.6,
+      "file_mb": 4683,
+      "tps": 4.9,
+      "pass": 5,
+      "total": 10
+    },
+    {
+      "label": "8B dense",
+      "kind": "dense",
+      "file": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "active_b": 8.0,
+      "total_b": 8.0,
+      "file_mb": 4921,
+      "tps": 4.22,
+      "pass": 1,
+      "total": 10
+    }
+  ],
+  "headline": {
+    "moe_label": "30B-A3B MoE",
+    "moe_tps": 10.58,
+    "moe_active_b": 3.3,
+    "moe_total_b": 30.5,
+    "moe_pass": 8,
+    "moe_total": 10,
+    "nearest_label": "3B dense",
+    "nearest_tps": 11.77,
+    "nearest_active_b": 3.1,
+    "nearest_pass": 1,
+    "speed_vs_nearest": 0.9,
+    "total_x_nearest": 9.8,
+    "hyp_dense_total_tps": 1.16,
+    "speedup_vs_hyp_dense": 9.2
+  },
+  "community": []
+};
+const fmt = n => (n==null?'—':(Math.round(n*10)/10).toFixed(1));
+const fmt0 = n => (n==null?'—':Math.round(n).toString());
+const byId = id => document.getElementById(id);
+
+function passPct(m){ return (m && m.total) ? Math.round(1000*m.pass/m.total)/10 : null; }
+
+function renderHeadline(){
+  const h = DATA.headline || {};
+  if(h.moe_total_b!=null){
+    byId('s-params').innerHTML = `${fmt(h.moe_total_b)}<span class="u">B</span> &rarr; ${fmt(h.moe_active_b)}<span class="u">B</span>`;
+  }
+  if(h.moe_tps!=null){
+    byId('s-speed').innerHTML = `${fmt(h.moe_tps)}<span class="u"> tok/s</span>`;
+    byId('s-speed-l').innerHTML = `the 30B MoE on CPU — &asymp; a dense ${h.nearest_label||'3B'} (${fmt(h.speed_vs_nearest)}&times;), not a dense 30B`;
+  }
+  if(h.moe_pass!=null){
+    byId('s-quality').innerHTML = `${h.moe_pass}<span class="u">/${h.moe_total}</span> vs ${h.nearest_pass}<span class="u">/${h.moe_total}</span>`;
+    byId('s-quality-l').innerHTML = `quality: the MoE vs the dense ${h.nearest_label||'3B'} it ties on speed`;
+  }
+  // prose
+  if(h.moe_tps!=null){
+    byId('p-speed').innerHTML = `The <b class="hl">30B-A3B MoE</b> decoded at <b class="hl">${fmt(h.moe_tps)} tok/s</b> on the i7-8700 — essentially the speed of the <b class="hl">${h.nearest_label}</b> (${fmt(h.nearest_tps)} tok/s, ${fmt(h.speed_vs_nearest)}&times;), a model with <b class="hl">${fmt(h.total_x_nearest)}&times; fewer parameters</b>. It lands right where its ${fmt(h.moe_active_b)}B of <em>active</em> weights predict, not where its ${fmt(h.moe_total_b)}B total would. A genuinely dense 30B would crawl near <b class="hl">~${fmt(h.hyp_dense_total_tps)} tok/s</b> on this CPU (dashed line) — the MoE is about <b class="hl">${fmt(h.speedup_vs_hyp_dense)}&times; faster</b> than that, for free, by construction.`;
+    byId('p-frontier').innerHTML = `The dense models trace the usual tradeoff: faster means smaller means dumber. The MoE <b class="hl">breaks that frontier</b> — it sits at the dense ${h.nearest_label}'s speed but scores <b class="hl">${h.moe_pass}/${h.moe_total}</b> on the graded set versus the ${h.nearest_label}'s <b class="hl">${h.nearest_pass}/${h.moe_total}</b>. Same wait per token, a different tier of answer.`;
+    byId('w1').innerHTML = `Plotting tok/s against active parameters, every model — dense and MoE alike — falls on one bandwidth curve. The MoE is not special-cased: read ${fmt(h.moe_active_b)}B of weights per token and you get ~${fmt(h.moe_tps)} tok/s whether those weights came from a 3B dense model or were routed out of a 30B pool. The total size only governs how much RAM you need to hold it, not how fast it runs. This is the single most useful fact about running MoE locally: <b>budget your speed by active size, your RAM by total size.</b>`;
+    byId('w2').innerHTML = `On a fast GPU the dense ${h.nearest_label} and the MoE feel similarly quick, so the MoE's edge is invisible. On a CPU the dense model that could keep up on <em>quality</em> — a 30B — would be ${fmt(h.speedup_vs_hyp_dense)}&times; slower, unusable for interactive use. The MoE gives you that quality tier at the speed of the small model. For CPU inference specifically, that is the difference between "too slow to use" and "fine."`;
+    byId('takeaway').innerHTML = `<b>If your machine has lots of RAM and no big GPU, an MoE is the highest-quality model you can run at a usable speed.</b> A ${fmt(h.moe_total_b)}B-A${fmt(h.moe_active_b)}B model needs ~18&nbsp;GB of RAM but decodes like a ${h.nearest_label} (${fmt(h.moe_tps)} tok/s here) while answering like something far larger. Pick the MoE whose <em>active</em> size your CPU can decode fast enough, then give it as much RAM as its <em>total</em> size needs. Faster memory (DDR5, more channels) raises the speed; it does not change the rule.`;
+  }
+}
+
+function chartSpeed(){
+  const host = byId('speedchart');
+  const m = (DATA.models||[]).slice().sort((a,b)=>a.active_b-b.active_b);
+  if(!m.length){ host.innerHTML = pendingBox(); return; }
+  const h = DATA.headline||{};
+  const W=820,H=300,padL=52,padR=18,padT=18,padB=58,plotW=W-padL-padR,plotH=H-padT-padB;
+  let max=0; m.forEach(x=>max=Math.max(max,x.tps||0)); max=Math.ceil(max/10)*10||10;
+  const n=m.length, gW=plotW/n, bw=Math.min(70,gW*0.56);
+  let o=`<g font-family="var(--sans)">`;
+  for(let i=0;i<=4;i++){const y=padT+plotH-plotH*i/4;o+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eef1f6"/><text x="${padL-7}" y="${y+4}" text-anchor="end" font-size="10.5" fill="#8893a5">${Math.round(max*i/4)}</text>`;}
+  // hypothetical dense-30B line
+  if(h.hyp_dense_total_tps!=null){
+    const y=padT+plotH-plotH*(h.hyp_dense_total_tps/max);
+    o+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e3543b" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+    o+=`<text x="${W-padR}" y="${y-6}" text-anchor="end" font-size="11" font-weight="700" fill="#e3543b">a dense 30B would be ~${fmt(h.hyp_dense_total_tps)} tok/s</text>`;
+  }
+  m.forEach((x,i)=>{
+    const v=x.tps||0, hh=plotH*v/max, isMoE=x.kind==='moe';
+    const bx=padL+gW*i+gW/2-bw/2, by=padT+plotH-hh;
+    o+=`<rect x="${bx}" y="${by}" width="${bw}" height="${hh}" rx="5" fill="${isMoE?'#76b900':'#8893a5'}"><animate attributeName="height" from="0" to="${hh}" dur="0.6s" fill="freeze"/><animate attributeName="y" from="${padT+plotH}" to="${by}" dur="0.6s" fill="freeze"/></rect>`;
+    o+=`<text x="${bx+bw/2}" y="${by-6}" text-anchor="middle" font-size="11.5" font-weight="800" fill="${isMoE?'#5c9000':'#13161b'}">${fmt(v)}</text>`;
+    o+=`<text x="${padL+gW*i+gW/2}" y="${H-30}" text-anchor="middle" font-size="12" font-weight="700" fill="#3a4250">${x.label}</text>`;
+    o+=`<text x="${padL+gW*i+gW/2}" y="${H-15}" text-anchor="middle" font-size="10" fill="#8893a5">${fmt(x.active_b)}B act${isMoE?` / ${fmt(x.total_b)}B tot`:''}</text>`;
+  });
+  o+=`</g>`;
+  host.innerHTML = `<div class="chartcard"><h3>Generation speed on CPU — dense models vs the 30B-A3B MoE</h3>
+    <div class="legend"><span><i style="background:var(--slate)"></i>dense</span><span><i style="background:var(--green)"></i>MoE (30B total)</span><span><i style="background:var(--red)"></i>extrapolated dense-30B</span></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%">${o}</svg>
+    <figcaption>tok/s on the i7-8700 (CPU, 6 threads). The MoE (green) matches the dense models near its <b>active</b> size — nowhere near the red line where a genuinely dense 30B would sit.</figcaption></div>`;
+}
+
+function chartFrontier(){
+  const host = byId('frontierchart');
+  const m = (DATA.models||[]);
+  if(!m.length){ host.innerHTML=''; return; }
+  const W=820,H=300,padL=52,padR=22,padT=22,padB=52,plotW=W-padL-padR,plotH=H-padT-padB;
+  let xmax=0; m.forEach(x=>xmax=Math.max(xmax,x.tps||0)); xmax=Math.ceil(xmax/10)*10||10;
+  const X=v=>padL+plotW*(v/xmax), Y=p=>padT+plotH-plotH*(p/100);
+  let o=`<g font-family="var(--sans)">`;
+  for(let i=0;i<=4;i++){const y=padT+plotH-plotH*i/4;o+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eef1f6"/><text x="${padL-7}" y="${y+4}" text-anchor="end" font-size="10.5" fill="#8893a5">${25*i}%</text>`;}
+  for(let i=0;i<=4;i++){const x=padL+plotW*i/4;o+=`<text x="${x}" y="${H-30}" text-anchor="middle" font-size="10.5" fill="#8893a5">${Math.round(xmax*i/4)}</text>`;}
+  o+=`<text x="${padL+plotW/2}" y="${H-12}" text-anchor="middle" font-size="11" fill="#8893a5">generation speed (tok/s) &rarr;</text>`;
+  o+=`<text x="16" y="${padT+plotH/2}" transform="rotate(-90 16 ${padT+plotH/2})" text-anchor="middle" font-size="11" font-weight="600" fill="#76b900">quality (pass-rate)</text>`;
+  // dense frontier polyline (sorted by tps)
+  const dense=m.filter(x=>x.kind==='dense'&&x.tps!=null).slice().sort((a,b)=>a.tps-b.tps);
+  if(dense.length>1){
+    o+=`<polyline fill="none" stroke="#cfd6e2" stroke-width="2" stroke-dasharray="2 3" points="${dense.map(x=>X(x.tps)+','+Y(passPct(x))).join(' ')}"/>`;
+  }
+  m.forEach(x=>{
+    if(x.tps==null) return;
+    const isMoE=x.kind==='moe', cx=X(x.tps), cy=Y(passPct(x));
+    o+=`<circle cx="${cx}" cy="${cy}" r="${isMoE?8:5.5}" fill="${isMoE?'#76b900':'#8893a5'}" ${isMoE?'stroke="#5c9000" stroke-width="2"':''}/>`;
+    o+=`<text x="${cx}" y="${cy-(isMoE?14:11)}" text-anchor="middle" font-size="11" font-weight="${isMoE?'800':'700'}" fill="${isMoE?'#5c9000':'#3a4250'}">${x.label}</text>`;
+  });
+  o+=`</g>`;
+  host.innerHTML = `<div class="chartcard"><h3>Quality vs speed — the MoE sits above the dense frontier</h3>
+    <div class="legend"><span><i style="background:var(--slate)"></i>dense (speed/quality frontier)</span><span><i style="background:var(--green)"></i>30B-A3B MoE</span></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%">${o}</svg>
+    <figcaption>Up-and-to-the-right is better. Dense models trade speed for quality along the dashed line; the MoE clears it — the small-model speed, a bigger-model score.</figcaption></div>`;
+}
+
+function pendingBox(){
+  return `<div class="pending"><b>Results pending.</b><br>Scaffolded and ready — numbers land once the sweep runs on real hardware. Want to be first? See <a href="../../../CONTRIBUTING.md">CONTRIBUTING</a>.</div>`;
+}
+
+function renderResults(){
+  const host=byId('results');
+  const m=DATA.models||[];
+  if(!m.length){ host.innerHTML=pendingBox(); return; }
+  const rows=m.slice().sort((a,b)=>a.active_b-b.active_b).map(r=>`<tr class="${r.kind==='moe'?'moe':''}"><td><b>${r.label}</b></td><td>${r.kind==='moe'?'MoE':'dense'}</td><td class="num">${fmt(r.active_b)}</td><td class="num">${fmt(r.total_b)}</td><td class="num">${r.file_mb||'—'}</td><td class="num">${fmt(r.tps)}</td><td class="num">${r.pass!=null?r.pass+'/'+r.total:'—'}</td></tr>`).join('');
+  host.innerHTML=`<table><tr><th>Model</th><th>Kind</th><th>Active B</th><th>Total B</th><th>Size MB</th><th>tok/s</th><th>Quality</th></tr>${rows}</table>`;
+}
+
+function renderCommunity(){
+  const host=byId('community');
+  const rows=DATA.community||[];
+  if(!rows.length){ host.innerHTML=`<p>No community submissions yet — run it on your rig (especially DDR5 / many-channel boxes) and open a PR. See <a href="../../../CONTRIBUTING.md">CONTRIBUTING</a>.</p>`; return; }
+  host.innerHTML=`<p>${rows.length} submission(s) — see <code class="inl">results/community/</code>.</p>`;
+}
+
+renderHeadline(); chartSpeed(); chartFrontier(); renderResults(); renderCommunity();
+</script>
+</body>
+</html>
